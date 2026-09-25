@@ -13,6 +13,7 @@ tests/_support.py) proves it.
 """
 import time as _time
 
+from omniwatch.demo import history as _history
 from omniwatch.demo.scenario import SCENARIOS, build_world
 
 __all__ = ['SCENARIOS', 'make_demo_providers']
@@ -61,6 +62,26 @@ class _DemoControl:
         self._clock.advance(seconds)
         self._world.apply_timeline(self._clock.time())
         return self._clock.time()
+
+    # ---- seed data for the engine (Engine.apply_demo_seed / apply_seed_state)
+
+    @property
+    def initial_state(self):
+        """Labels and project names the StateStore starts with."""
+        return _history.initial_state(self._world)
+
+    def seed_history(self):
+        """{uid: [(at, state)]} over the last 8 h (activity timeline +
+        blocked-on-you stats)."""
+        return _history.seed_history(self._world, self._clock.time())
+
+    def seed_last_change(self):
+        """{uid: epoch} screen-unchanged-since times (stalled sessions)."""
+        return _history.seed_last_change(self._world, self._clock.time())
+
+    def seed_usage_history(self):
+        """usage-history.jsonl entries (sparklines + burn rate)."""
+        return _history.seed_usage_history(self._world, self._clock.time())
 
 
 class _FakeItermProvider:
@@ -134,6 +155,15 @@ class _FakeOpener:
 
     def open_app(self, name):
         self._world.opened.append(('open_app', name))
+
+    def reveal(self, path):
+        self._world.opened.append(('reveal', path))
+
+    def open_editor(self, argv, path):
+        self._world.opened.append(('open_editor', list(argv) + [path]))
+
+    def copy_text(self, text):
+        self._world.opened.append(('copy_text', text))
 
 
 class DemoProviders:

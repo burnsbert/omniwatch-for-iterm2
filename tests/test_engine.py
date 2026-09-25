@@ -40,7 +40,7 @@ class TestInitialState(EngineTestCase):
         self.assertEqual(doc['iterm']['status'], 'connecting')
         self.assertEqual(doc['sessions'], [])
         self.assertEqual(doc['summary'], {'tabs': 0, 'agents': 0, 'waiting': 0,
-                                          'busy': 0, 'waiting_uids': []})
+                                          'busy': 0, 'stalled': 0, 'waiting_uids': []})
         self.assertEqual(doc['usage']['claude']['status'], 'inactive')
         self.assertEqual([p['color'] for p in doc['projects']],
                          ['blue', 'purple', 'green', 'red', 'yellow'])
@@ -93,7 +93,7 @@ class TestSessionsPublishing(EngineTestCase):
                          [fp.UID_WAIT, fp.UID_BUSY, fp.UID_CODEX, fp.UID_SHELL])
         self.assertEqual(doc['windows'], [{'id': 100, 'number': 1}, {'id': 200, 'number': 2}])
         self.assertEqual(doc['summary'], {
-            'tabs': 4, 'agents': 3, 'waiting': 2, 'busy': 1,
+            'tabs': 4, 'agents': 3, 'waiting': 2, 'busy': 1, 'stalled': 0,
             'waiting_uids': [fp.UID_WAIT, fp.UID_CODEX]})
         wait = h.session(fp.UID_WAIT)
         self.assertEqual(wait['tab_label'], '1.1')

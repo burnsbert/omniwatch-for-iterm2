@@ -78,6 +78,10 @@ ROUTES = (
     ('PUT', '/api/v1/sessions/{uid}/mute', 'mute'),
     ('POST', '/api/v1/sessions/{uid}/close', 'close'),
     ('POST', '/api/v1/sessions/{uid}/reply', 'reply'),
+    ('POST', '/api/v1/sessions/{uid}/reveal', 'reveal'),
+    ('GET', '/api/v1/sessions/{uid}/history', 'history'),
+    ('GET', '/api/v1/usage/history', 'usage_history'),
+    ('GET', '/api/v1/stats', 'stats'),
     ('POST', '/api/v1/tabs/new', 'new_tab'),
     ('POST', '/api/v1/iterm/launch', 'launch'),
     ('POST', '/api/v1/refresh', 'refresh'),
@@ -266,6 +270,17 @@ class Handler(BaseHTTPRequestHandler):
     def route_diagnostics(self, params, body, url):
         self._json(200, self.server.engine.diagnostics())
 
+    def route_stats(self, params, body, url):
+        self._json(200, self.server.engine.stats_view())
+
+    def route_history(self, params, body, url):
+        hours = _hours(url, default=8, maximum=8)
+        self._json(200, self.server.engine.history(params['uid'], hours))
+
+    def route_usage_history(self, params, body, url):
+        hours = _hours(url, default=24, maximum=168)
+        self._json(200, self.server.engine.usage_history_view(hours))
+
     def route_get_prefs(self, params, body, url):
         self._json(200, self.server.engine.prefs())
 
@@ -318,6 +333,20 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(404, 'not_found', 'demo mode only')
 
 
+def _hours(url, default, maximum):
+    """`?hours=` as a number in (0, maximum]; 400 otherwise."""
+    raw = (parse_qs(url.query).get('hours') or [None])[0]
+    if raw is None:
+        return default
+    try:
+        hours = float(raw)
+    except ValueError:
+        raise ApiError(400, 'bad_request', 'hours must be a number')
+    if not 0 < hours <= maximum or hours != hours:
+        raise ApiError(400, 'bad_request', 'hours must be in (0, %d]' % maximum)
+    return hours
+
+
 # Engine commands: route name -> (engine method, takes uid, takes body,
 # success status).
 COMMAND_ROUTES = {
@@ -329,6 +358,7 @@ COMMAND_ROUTES = {
     'mute': ('set_muted', True, True, 200),
     'close': ('close', True, True, 202),
     'reply': ('reply', True, True, 202),
+    'reveal': ('reveal', True, True, 202),
     'new_tab': ('new_tab', False, False, 202),
     'launch': ('launch_iterm', False, False, 202),
     'refresh': ('refresh', False, False, 200),

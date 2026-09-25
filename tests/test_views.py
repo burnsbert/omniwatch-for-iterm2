@@ -90,7 +90,7 @@ class TestSummary(TripwireTestCase):
               {'uid': 'c', 'agent': 'codex', 'state': 'waiting', 'title': 'C', 'state_since': 2}]
         summ = views.summary(sv, ['c', 'gone', 'a'])
         self.assertEqual(summ, {'tabs': 3, 'agents': 2, 'waiting': 2, 'busy': 1,
-                                'waiting_uids': ['c', 'a']})
+                                'stalled': 0, 'waiting_uids': ['c', 'a']})
         ep = views.summary_endpoint(sv, summ)
         self.assertEqual(ep['waiting_sessions'],
                          [{'uid': 'c', 'title': 'C', 'since': 2, 'agent': 'codex'},

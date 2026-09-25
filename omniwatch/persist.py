@@ -40,6 +40,8 @@ DEFAULTS = {
     'hint_bar': True,
     'debug_rule': False,
     'onboarding_done': False,
+    'stall_minutes': 10,   # busy + unchanged screen this long = stalled; 0 = off
+    'editor': '',          # "Open in editor" command; '' = $VISUAL/$EDITOR/code
     'migrated_from_ultrawatch': None,  # epoch, or None if never migrated
 }
 

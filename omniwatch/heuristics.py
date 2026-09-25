@@ -295,6 +295,19 @@ class SessionTracker:
     def attention_count(self):
         return sum(1 for tr in self._tracks.values() if tr.state == WAITING)
 
+    def seed(self, uid, state_since=None, last_change=None):
+        """Move a tracked session's state_since / last_change *earlier*
+        (demo history seeding; never later). Returns True if uid is
+        tracked."""
+        tr = self._tracks.get(uid)
+        if tr is None:
+            return False
+        if state_since is not None and state_since < tr.state_since:
+            tr.state_since = state_since
+        if last_change is not None and last_change < tr.last_change:
+            tr.last_change = last_change
+        return True
+
     def history(self, uid):
         """Return the (at, state) ring buffer for `uid`, oldest first, as
         a tuple. Empty for unknown uids (P1 activity timeline, §3)."""

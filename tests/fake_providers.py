@@ -176,6 +176,15 @@ class FakeOpener:
     def open_app(self, name):
         self.calls.append(('open_app', name))
 
+    def reveal(self, path):
+        self.calls.append(('reveal', path))
+
+    def open_editor(self, argv, path):
+        self.calls.append(('open_editor', list(argv) + [path]))
+
+    def copy_text(self, text):
+        self.calls.append(('copy_text', text))
+
 
 class FakeDemo:
     """The `.demo` extension: step() advances the clock and runs any

@@ -248,6 +248,7 @@ class Backend:
         from omniwatch.server import OmniwatchServer
         if self.demo:
             self.engine.sync_poll()
+            self.engine.apply_demo_seed()
             self.engine.pump()
         self.server = OmniwatchServer(self.engine, self.hub, self.token,
                                       port=self.opts.port, demo=self.demo,

@@ -20,16 +20,22 @@ import collections
 import concurrent.futures
 import copy
 import itertools
+import os
 import platform
 import queue
+import shlex
 import sys
 import threading
 import time
 import unicodedata
+from datetime import datetime, timezone
 
 from omniwatch import __version__, config, itermcolor
+from omniwatch import activity as activity_mod
 from omniwatch import heuristics as H
-from omniwatch import persist, views
+from omniwatch import persist
+from omniwatch import stats as stats_mod
+from omniwatch import usagehist, views
 from omniwatch.iterm import ItermNotAuthorized, ItermNotRunning
 from omniwatch.snapshot import (AgentSnapshot, ColorsSnapshot, ItermSnapshot,
                                 UsageSnapshot)
@@ -108,10 +114,49 @@ PREF_RULES = {
     'hint_bar': _is_bool,
     'debug_rule': _is_bool,
     'onboarding_done': _is_bool,
+    'stall_minutes': lambda v: isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 240,
+    'editor': lambda v: _valid_editor(v),
 }
 NOTIFICATION_RULES = {'enabled': _is_bool, 'click': _choice('goto', 'show')}
 
 assert set(PREF_RULES) == set(persist.PREF_KEYS), 'PREF_RULES out of sync'
+
+
+EDITOR_MAX_CHARS = 200
+# $VISUAL/$EDITOR values that need a terminal; launching them from the
+# backend would hang invisibly, so they're skipped (use e.g. "code -w",
+# "zed", or 'open -a "Sublime Text"').
+TERMINAL_EDITORS = frozenset({'vi', 'vim', 'nvim', 'nano', 'pico', 'emacs', 'micro',
+                              'hx', 'helix', 'kak', 'ne', 'joe', 'ed', 'mg', 'jed'})
+REVEAL_TARGETS = ('finder', 'editor', 'copy_path')
+
+
+def _valid_editor(value):
+    if not isinstance(value, str) or len(value) > EDITOR_MAX_CHARS:
+        return False
+    if any(unicodedata.category(ch) == 'Cc' for ch in value):
+        return False
+    try:
+        shlex.split(value)
+    except ValueError:
+        return False
+    return True
+
+
+def resolve_editor(pref, env):
+    """argv for "Open in editor": the `editor` pref, else $VISUAL, else
+    $EDITOR, else `code`; terminal-only editors are skipped. Never a
+    shell: the command is split with shlex and run as argv."""
+    for cmd in (pref, env.get('VISUAL'), env.get('EDITOR'), 'code'):
+        if not cmd or not cmd.strip():
+            continue
+        try:
+            argv = shlex.split(cmd)
+        except ValueError:
+            continue
+        if argv and os.path.basename(argv[0]) not in TERMINAL_EDITORS:
+            return argv
+    return ['code']
 
 
 def _valid_notifications(value, partial):
@@ -229,6 +274,12 @@ class Engine:
         self.tracker = H.SessionTracker()
         normalize_prefs(store)
         self._reset_model()
+        now = self.clock.time()
+        self.stats = stats_mod.BlockedStats(self._config_path('stats.json'))
+        self.stats.load(now)
+        self.usage_history = usagehist.UsageHistory(
+            self._config_path('usage-history.jsonl'))
+        self.usage_history.load(now)
 
         self._action_ids = itertools.count(1)
         self._pending_actions = collections.deque()   # (id, kind, uid, ok_detail)
@@ -264,6 +315,12 @@ class Engine:
         self.quota_prompt = None
         self.quota_surfaced = False
         self._missing_cwd = frozenset()
+        self.activity = activity_mod.ActivityLog()
+        self._live = set()
+        self._stalled = set()
+
+    def _config_path(self, name):
+        return os.path.join(self.config_dir, name) if self.config_dir else None
 
     def _sessions(self):
         return self.iterm_snap.sessions if self.iterm_snap else ()
@@ -313,6 +370,7 @@ class Engine:
         if self._thread is not None and self._thread is not threading.current_thread():
             self._thread.join(timeout)
         self.store.save()
+        self.stats.save()
 
     @property
     def running(self):
@@ -349,6 +407,8 @@ class Engine:
 
     def _housekeeping(self):
         self.store.maybe_save()
+        self.stats.roll(self.clock.time())
+        self.stats.save()
         if self.autostep is not None and self.sync:
             t = time.monotonic()
             elapsed = t - self._last_autostep
@@ -423,6 +483,7 @@ class Engine:
             self.iterm_snap = ItermSnapshot(at=snap.at)
             self.tracker.update((), {}, now)   # garbage-collect every track
             self.paths = {}
+            self._drop_sessions(self._live, now)
             return
         if snap.error:
             if snap.error.startswith(NOT_AUTHORIZED_PREFIX):
@@ -443,7 +504,19 @@ class Engine:
         kinds = views.agent_kinds(self.agents_snap)
         for uid, old, new in self.tracker.update(snap.sessions, kinds, now):
             self._transitions.append((uid, old, new, now))
+            self.activity.record(uid, now, new)
+            if old == H.WAITING:
+                self.stats.end(uid, now, answered=True)
+            if new == H.WAITING:
+                self.stats.start(uid, now)
         live = {s.uid for s in snap.sessions}
+        for uid in live - self._live:          # first observation
+            state = self.tracker.state(uid)[0]
+            self.activity.record(uid, now, state)
+            if state == H.WAITING:
+                self.stats.start(uid, now)
+        self._drop_sessions(self._live - live, now)
+        self._live = live
         self.paths = {u: p for u, p in self.paths.items() if u in live}
         self.store.touch_labels([u for u in live if self.store.label(u)])
         # TTYs with no shell-integration path (P-07). Deliberately not
@@ -455,9 +528,24 @@ class Engine:
         if self.needs_cwd_box is not None:
             self.needs_cwd_box.set(missing)
 
+    def _drop_sessions(self, uids, now):
+        """Sessions that went away: forget their timeline; a wait still in
+        progress ends unanswered."""
+        for uid in list(uids):
+            self.activity.forget(uid)
+            self.stats.end(uid, now, answered=False)
+            self._stalled.discard(uid)
+        self._live = self._live - set(uids)
+
     def _on_usage(self, kind, snap):
         prev = self.usage[kind]
         self.usage[kind] = snap
+        if snap.ok and snap.data and not snap.inactive:
+            now = self.clock.time()
+            limits = views.USAGE_PROVIDERS[kind](
+                snap.data, show_dollars=False,
+                now=datetime.fromtimestamp(now, timezone.utc))
+            self.usage_history.record(kind, limits, now)
         if snap.inactive or snap.ok:
             self.usage_stale_since[kind] = None
         elif snap.data and self.usage_stale_since[kind] is None:
@@ -560,14 +648,16 @@ class Engine:
         credentials answer changes — not every tick (pace projections move
         with `now`; the client ticks countdowns from resets_at itself)."""
         show = bool(self.store.get('show_dollars'))
-        key = (show, tuple((id(self.usage[k]), self.usage_stale_since[k],
-                            self._creds.get(k)) for k, _ in USAGE_KINDS))
+        key = (show, self.usage_history.rev,
+               tuple((id(self.usage[k]), self.usage_stale_since[k],
+                      self._creds.get(k)) for k, _ in USAGE_KINDS))
         if key != self._usage_blocks_key:
             self._usage_blocks_key = key
             self._usage_blocks = {
                 kind: views.usage_block(kind, self.usage[kind], show, now,
                                         self.usage_stale_since[kind],
-                                        self._creds.get(kind))
+                                        self._creds.get(kind),
+                                        burn=lambda lid: self.usage_history.burn(lid, now))
                 for kind, _ in USAGE_KINDS}
         return self._usage_blocks
 
@@ -577,7 +667,9 @@ class Engine:
             sessions, paths=self.paths, agents_snapshot=self.agents_snap,
             colors=self.colors, tracker=self.tracker, store=self.store,
             started=self.started, now=now, debug_rule=self._debug_rule(),
-            home=self.home, fresh_seconds=self.fresh_seconds)
+            home=self.home, fresh_seconds=self.fresh_seconds,
+            activity=self.activity,
+            stall_seconds=60 * (self.store.get('stall_minutes') or 0))
         return {
             'sessions': session_views,
             'summary': views.summary(session_views, self.tracker.waiting_uids()),
@@ -591,6 +683,7 @@ class Engine:
                 self._tab_colors_capability(), self.store.get('quick_reply'),
                 self._debug_rule()),
             'quota_prompt': copy.deepcopy(self.quota_prompt),
+            'stats': self.stats.view(),
         }
 
     @staticmethod
@@ -617,6 +710,19 @@ class Engine:
             out.append(('prefs', {'prefs': cur['prefs'], 'projects': cur['projects']}))
         if last['capabilities'] != cur['capabilities']:
             out.append(('capabilities', cur['capabilities']))
+        if last['stats'] != cur['stats']:
+            out.append(('stats', {'stats': cur['stats']}))
+        return out
+
+    def _stall_events(self, cur):
+        """A `stall` event for each session that just became stalled."""
+        stalled = {s['uid']: s for s in cur['sessions'] if s['stalled']}
+        out = [('stall', {'uid': uid, 'title': s['title'], 'agent': s['agent'],
+                          'since': s['stalled_since'],
+                          'minutes': self.store.get('stall_minutes'),
+                          'muted': s['muted']})
+               for uid, s in stalled.items() if uid not in self._stalled]
+        self._stalled = set(stalled)
         return out
 
     def _transition_events(self, cur):
@@ -645,6 +751,7 @@ class Engine:
             'usage': cur['usage'], 'prefs': cur['prefs'],
             'projects': cur['projects'], 'capabilities': cur['capabilities'],
             'quota_prompt': cur['quota_prompt'],
+            'stats': cur['stats'],
         }
 
     def _publish(self, initial=False, full_state=False):
@@ -655,12 +762,13 @@ class Engine:
         else:
             events = self._diff(self._last, cur)
             events += self._transition_events(cur)
+            events += self._stall_events(cur)
             events += self._out
         self._out = []
         with self.hub.lock:
             for event, data in events:
                 self._seq += 1
-                if event in ('sessions', 'screens', 'usage', 'prefs'):
+                if event in ('sessions', 'screens', 'usage', 'prefs', 'stats'):
                     data = dict(data, seq=self._seq)
                 self.hub.broadcast(self._seq, event, data)
             if full_state:
@@ -691,10 +799,26 @@ class Engine:
 
     def summary(self):
         doc = self._doc
-        return views.summary_endpoint(doc['sessions'], doc['summary'])
+        out = views.summary_endpoint(doc['sessions'], doc['summary'])
+        out['stats'] = copy.deepcopy(doc['stats'])
+        return out
 
     def prefs(self):
         return copy.deepcopy(self._doc['prefs'])
+
+    def stats_view(self):
+        return copy.deepcopy(self._doc['stats'])
+
+    def history(self, uid, hours=activity_mod.WINDOW_SECONDS / 3600):
+        """GET /sessions/{uid}/history (runs on the engine thread)."""
+        return self.call(self._history, uid, hours)
+
+    def _history(self, uid, hours):
+        self._require_session(uid)
+        return self.activity.history(uid, self.clock.time(), hours)
+
+    def usage_history_view(self, hours=24):
+        return self.usage_history.view(self.clock.time(), hours)
 
     def diagnostics(self):
         doc = self._doc
@@ -900,6 +1024,47 @@ class Engine:
         threading.Thread(target=work, name='launch', daemon=True).start()
         return {'ok': True, 'action_id': action_id}
 
+    def reveal(self, uid, body):
+        return self.call(self._reveal, uid, body)
+
+    def _reveal(self, uid, body):
+        target = body.get('target')
+        if not isinstance(target, str):
+            raise _bad('target must be a string')
+        if target not in REVEAL_TARGETS:
+            raise _invalid('target must be one of %s' % ', '.join(REVEAL_TARGETS))
+        s = self._require_session(uid)
+        path = views.session_path(s, self.paths, self.agents_snap)
+        if not path:
+            raise _invalid('no known path for this session')
+        shown = views.shorten(path, self.home)
+        opener = self.providers.opener
+        if target == 'finder':
+            work, detail = (lambda: opener.reveal(path)), 'revealed %s in Finder' % shown
+        elif target == 'editor':
+            argv = resolve_editor(self.store.get('editor'), os.environ)
+            work = lambda: opener.open_editor(argv, path)
+            detail = 'opened %s in %s' % (shown, os.path.basename(argv[0]))
+        else:
+            work, detail = (lambda: opener.copy_text(path)), 'copied %s' % shown
+        action_id, _ = self._new_action('reveal', uid)
+
+        def run():
+            try:
+                work()
+                ok, msg = True, detail
+            except FileNotFoundError as e:
+                ok, msg = False, 'not found: %s' % (e.filename or e)
+            except Exception as e:
+                ok, msg = False, str(e) or type(e).__name__
+            return (action_id, 'reveal', uid, ok, msg)
+        if self.sync:
+            self._handle(('__action_done__', run()))
+        else:
+            threading.Thread(target=lambda: self.events.put(('__action_done__', run())),
+                             name='reveal', daemon=True).start()
+        return {'ok': True, 'action_id': action_id}
+
     def refresh(self):
         return self.call(self._refresh)
 
@@ -1023,10 +1188,52 @@ class Engine:
         self.clock = target.clock
         self.tracker = H.SessionTracker()
         self._reset_model()
+        self.stats = stats_mod.BlockedStats(self.stats.path)
+        self.stats.roll(self.clock.time())
+        self.usage_history = usagehist.UsageHistory(self.usage_history.path)
+        self.usage_history.seed([], self.clock.time())
         apply_seed_state(self.store, getattr(target, 'demo', None))
         self.sync_poll()
+        self.apply_demo_seed()
         seq = self._publish(full_state=True)
         return {'ok': True, 'seq': seq, 'scenario': name}
+
+    def apply_demo_seed(self):
+        """Seed the timeline, blocked-on-you stats, stall clock and usage
+        history from the demo providers (``providers.demo.seed_history()``,
+        ``.seed_last_change()``, ``.seed_usage_history()``; each optional).
+        Call after the first sync_poll so the sessions are tracked."""
+        demo = getattr(self.providers, 'demo', None)
+        if demo is None:
+            return
+        now = self.clock.time()
+        history = _call_quietly(getattr(demo, 'seed_history', lambda: {})) or {}
+        completed, active = [], {}
+        for uid, entries in history.items():
+            if uid not in self._live:
+                continue
+            entries = [(at, st) for at, st in entries if at <= now]
+            if not entries:
+                continue
+            self.activity.seed(uid, entries)
+            merged = self.activity.entries(uid)
+            current = self.tracker.state(uid)[0]
+            if entries[-1][1] == current:
+                self.tracker.seed(uid, state_since=entries[-1][0])
+            for i, (at, st) in enumerate(merged):
+                if st != H.WAITING:
+                    continue
+                if i + 1 < len(merged):
+                    completed.append((at, merged[i + 1][0]))
+                elif current == H.WAITING:
+                    active[uid] = at
+        self.stats.seed(completed, active, now)
+        last_change = _call_quietly(getattr(demo, 'seed_last_change', lambda: {})) or {}
+        for uid, at in last_change.items():
+            self.tracker.seed(uid, last_change=at)
+        usage = _call_quietly(getattr(demo, 'seed_usage_history', lambda: [])) or []
+        if usage:
+            self.usage_history.seed(usage, now)
 
     def sync_poll(self):
         """Poll every provider synchronously on this thread, in the order

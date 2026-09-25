@@ -1,7 +1,10 @@
 # Omniwatch HTTP API (v1)
 
 This is the API as implemented in `omniwatch/server.py`, `engine.py`, `views.py`, `sse.py`,
-`security.py`, `runtime.py` and `cli.py` (commit c3627b4). It's written for plugin and
+`security.py`, `runtime.py`, `cli.py`, and (since T014) `activity.py`, `stats.py` and
+`usagehist.py`. T014 promoted five DESIGN §3 P1 features into v1: the activity timeline,
+"blocked on you" stats, stall detection, usage history with burn rate, and reveal/open-in.
+They're marked **(P1→v1)** below. It's written for plugin and
 scripting users and for the web UI. Where it differs from the design (DESIGN.md §4.4),
 the last section lists every difference.
 
@@ -94,6 +97,7 @@ Anything that goes through the iTerm2 worker (or launches iTerm2) returns
 | `probe` | `POST /diagnostics/probe-automation` | `""` | e.g. `Not authorized to send Apple events… (-1743)` |
 | `launch` | `POST /iterm/launch` | `launching iTerm2…` | `open` error |
 | `color` | `PUT /sessions/{uid}/color` | `tab 1.2 → purple (billing)` / `tab 1.2 → orange` / `tab 1.2: color cleared` | never; setting a color is best-effort, and the next colors poll shows what actually applied |
+| `reveal` | `POST /sessions/{uid}/reveal` | `revealed ~/src/api in Finder` / `opened ~/src/api in code` / `copied ~/src/api` | `not found: subl` (editor binary missing), `open -R failed`, `pbcopy failed` |
 
 A failure toast in the UI is usually rendered as `"{kind} failed: {detail}"` (P-71).
 
@@ -108,7 +112,10 @@ body is optional and ignored, but if one is sent it must be a JSON object.
 |---|---|
 | `GET /api/v1/health` | `{"ok":true,"version":"1.0.0","demo":false,"pid":1234,"uptime_s":12.345}` |
 | `GET /api/v1/state` | the full **State** (§5), with `server_time` refreshed |
-| `GET /api/v1/summary` | `{"tabs":9,"agents":4,"waiting":2,"busy":1,"waiting_sessions":[{"uid":"…","title":"refactor","since":1789999820.0,"agent":"claude"}]}`. `waiting_sessions` is ordered longest wait first |
+| `GET /api/v1/summary` | `{"tabs":9,"agents":4,"waiting":2,"busy":1,"stalled":1,"waiting_sessions":[{"uid":"…","title":"refactor","since":1789999820.0,"agent":"claude"}],"stats":Stats}`. `waiting_sessions` is ordered longest wait first |
+| `GET /api/v1/stats` **(P1→v1)** | the **Stats** object (§5) |
+| `GET /api/v1/sessions/{uid}/history?hours=8` **(P1→v1)** | the **History** object (§5). `hours` is optional, in (0, 8], default 8. A bad `hours` → 400; an unknown uid → 404 |
+| `GET /api/v1/usage/history?hours=24` **(P1→v1)** | the **UsageHistory** object (§5). `hours` is optional, in (0, 168], default 24. A bad `hours` → 400 |
 | `GET /api/v1/diagnostics` | `{"python":{"path":"/usr/bin/python3","version":"3.9.6"},"iterm":{"status":"ok","error":""},"automation":"ok"\|"denied"\|"unknown","tab_colors":{"package":true,"reachable":true\|false\|null},"claude_credentials":true\|false\|null,"codex_credentials":true\|false\|null,"config_dir":"…","log_path":"…","demo":false}`. `null` means unknown. The Claude credential check may run `security` (Keychain). `automation` is derived from `iterm.status`: `ok`→`ok`, `not_authorized`→`denied`, anything else→`unknown` |
 | `GET /api/v1/prefs` | the bare **Prefs** object (§5) |
 | `GET /api/v1/events` | the SSE stream (§6) |
@@ -124,6 +131,19 @@ body is optional and ignored, but if one is sent it must be a JSON object.
 | `PUT /api/v1/sessions/{uid}/mute` | `{"muted":true}` | `200 {"ok":true,"muted":true}` | 400 (not a bool), 404 |
 | `POST /api/v1/sessions/{uid}/close` | `{"confirm":true}` | `202 {ok, action_id}`. The tab is found by uid inside the AppleScript | 400 without `confirm:true`, 404, 503 |
 | `POST /api/v1/sessions/{uid}/reply` | `{"text":"1","submit":false,"expect_hash":"9f3a01bc"}` | `202 {ok, action_id}` | see below |
+| `POST /api/v1/sessions/{uid}/reveal` **(P1→v1)** | `{"target":"finder"\|"editor"\|"copy_path"}` | `202 {ok, action_id}`; the result comes as an `action` event with kind `reveal` | 400 (`target` missing / not a string), 422 (unknown target, or no known path for the session), 404 |
+
+**Reveal / Open in.** The path is always the session's own (shell-integration path, else
+lsof cwd), resolved on the server. A `path` in the body is ignored. Every effect goes
+through the Opener provider, and nothing uses a shell:
+
+| `target` | effect (real providers) |
+|---|---|
+| `finder` | `open -R <path>` |
+| `editor` | `argv + [path]`, launched detached. `argv` comes from `shlex.split` of the first usable command among `prefs.editor`, `$VISUAL`, `$EDITOR`, then `code`. Terminal-only editors (`vi`, `vim`, `nvim`, `nano`, `pico`, `emacs`, `micro`, `hx`, `helix`, `kak`, `ne`, `joe`, `ed`, `mg`, `jed`) are skipped, because they'd hang with no terminal. Examples that work: `code -w`, `zed`, `cursor`, `open -a "Sublime Text"` |
+| `copy_path` | `pbcopy` with the path. This is the server's clipboard, which is the same Mac |
+
+Demo mode records these calls and never runs anything.
 
 **Quick reply** checks, in order:
 
@@ -180,6 +200,8 @@ Pref whitelist and allowed values:
 | `hint_bar` | bool | `true` |
 | `debug_rule` | bool (adds `rule` to sessions) | `false` |
 | `onboarding_done` | bool | `false` |
+| `stall_minutes` **(P1→v1)** | integer 0–240 (not a bool, not a float); `0` turns stall detection off | `10` |
+| `editor` **(P1→v1)** | string ≤ 200 characters, no control characters, must split with shlex; `""` means auto (`$VISUAL`/`$EDITOR`/`code`) | `""` |
 
 Booleans must be JSON booleans; `1` is rejected. Invalid values already in `state.json` are
 reset to their defaults at startup. Changing `show_dollars` also emits a `usage` event.
@@ -214,7 +236,8 @@ percentage reaches the configured threshold and it hasn't been shown this month
   "prefs": Prefs,
   "projects": [{"slot": 1, "name": "api", "color": "blue"}, … 5 entries, colors blue/purple/green/red/yellow],
   "capabilities": {"tab_colors": true, "reply": true, "debug_rule": false},
-  "quota_prompt": null
+  "quota_prompt": null,
+  "stats": Stats
 }
 ```
 
@@ -230,6 +253,8 @@ percentage reaches the configured threshold and it hasn't been shown this month
 - `iterm.stale` is also `true` when `status` is `ok` but the last good snapshot is more than
   4× the snapshot interval old (8 s by default).
 - `iterm.poll_ms` is always `0` in demo mode.
+- `summary.stalled` **(P1→v1)** counts stalled sessions.
+- `stats` **(P1→v1)**: see Stats below.
 - `summary.tabs` counts sessions. `summary.waiting` counts sessions whose `state` is
   `waiting`. `summary.waiting_uids` is ordered longest wait first.
 - `quota_prompt` is `null` or `{"pct": 91.0, "to": "you@example.com"}`.
@@ -252,7 +277,10 @@ percentage reaches the configured threshold and it hasn't been shown this month
   "screen_hash": "9f3a01bc",
   "prompt": {"question": "Do you want to proceed?",
              "options": [{"key": "1", "label": "Yes", "selected": true}, …],
-             "free_text": false}
+             "free_text": false},
+  "stalled": false, "stalled_since": null,
+  "ribbon": {"end": 1790000400, "bucket_s": 600,
+             "codes": "iiiibbbwbbbbbwwbbbbbbbiibbbbbbbbbbbbbbbbbbbibbbw"}
 }
 ```
 
@@ -275,6 +303,17 @@ percentage reaches the configured threshold and it hasn't been shown this month
   trimmed, as 8 lowercase hex digits. It's the value to send as `expect_hash`.
 - `prompt` is only present (non-null) for agent sessions in `waiting` whose screen parses.
 - `rule` (the classifier rule name) is present only when `capabilities.debug_rule`.
+- `stalled` **(P1→v1)**: `true` when `state` is `busy` and the screen hash (spinners
+  stripped) hasn't changed for at least `prefs.stall_minutes` (default 10; `0` = off).
+  `stalled_since` is the time of the last screen change (the session has been stuck since
+  then), else `null`. When a session becomes stalled, an SSE `stall` event is sent once per
+  episode.
+- `ribbon` **(P1→v1)**: the compact activity timeline. It's 48 buckets of 10 minutes
+  (8 h), aligned to wall-clock 10-minute boundaries. `end` is the end of the bucket that
+  contains `server_time`; bucket *i* covers `[end − (48−i)·600, end − (47−i)·600)`. Each
+  letter is the state that held longest in that bucket: `w` waiting, `b` busy, `i` idle,
+  `a` active, `q` quiet, `-` no data. Ties go to w > b > i > a > q. It changes only on a state
+  change or a bucket rollover. It's `null` before the session is first classified.
 
 ### UsageBlock
 
@@ -286,9 +325,12 @@ percentage reaches the configured threshold and it hasn't been shown this month
     "projection": {"kind": "pace", "at": 1790006400, "text": "on pace to hit session limit Today at 5:30pm"}},
    {"id": "claude.monthly", "label": "Monthly cap", "window": "month", "pct": 91.0, "level": "red",
     "resets_at": 1790812800, "reset_text": "9d 6h (Oct 1 at 12:00am)", "has_cap": true,
-    "limit_display": null, "projection": {"kind": "pace", "at": 1790500000, "text": "…"}}
+    "limit_display": null, "projection": {"kind": "pace", "at": 1790500000, "text": "…"},
+    "burn": Burn}
  ]}
 ```
+
+Each limit also has `burn` **(P1→v1)**: a Burn object (see UsageHistory) or `null`.
 
 `status` values:
 
@@ -315,7 +357,83 @@ Other fields:
 
 ### Prefs
 
-See the table in §4. `GET`/`PATCH /prefs` return exactly these 17 keys.
+See the table in §4. `GET`/`PATCH /prefs` return exactly these 19 keys.
+
+### Stats **(P1→v1)**: "blocked on you", today
+
+```json
+{"day": "2026-09-21", "waiting_seconds": 4980, "longest_wait_s": 780, "answered": 14, "waits": 16,
+ "active": [{"uid": "DEMO-0001", "since": 1789999760.0}, {"uid": "DEMO-0007", "since": 1789999880.0}]}
+```
+
+- `day` is the local calendar date. The counters reset at local midnight; a wait in progress
+  across midnight counts from 00:00.
+- `waiting_seconds` is the total of *finished* waits today, for agent sessions only.
+  `longest_wait_s` is the longest finished wait. A live total is `waiting_seconds + Σ(now −
+  active[].since)`.
+- `waits` counts waits started today. `answered` counts waits that ended because the session
+  left `waiting` while still open. A session closing, or iTerm2 quitting, ends a wait
+  unanswered.
+- `active` lists the waits in progress, oldest first.
+- The object only changes on a transition or at midnight, never every second.
+- It's in the State (`stats`), in `/summary` (`stats`), at `GET /stats`, and pushed as the
+  SSE `stats` event.
+- The day's totals are persisted to `<config dir>/stats.json`, so a restart keeps them. A
+  file from another day is ignored.
+
+### History **(P1→v1)**: `GET /sessions/{uid}/history`
+
+```json
+{"uid": "DEMO-0001", "from": 1789971200.0, "to": 1790000000.0, "hours": 8,
+ "segments": [{"state": "idle", "start": 1789971200.0, "end": 1789974200.0},
+              {"state": "busy", "start": 1789974200.0, "end": 1789975880.0},
+              …,
+              {"state": "waiting", "start": 1789999760.0, "end": null}],
+ "totals": {"busy": 22320.0, "idle": 4500.0, "waiting": 1980.0},
+ "transitions": 14}
+```
+
+- `segments` are clipped to `[from, to]`. The last one is ongoing (`end: null`).
+- `state` values are the Session states, plus `null` while unclassified. `totals` uses the
+  key `unknown` for `null`.
+- `transitions` counts state changes inside the window.
+- Only published (debounced) states are recorded. A session's timeline starts when it's
+  first seen and is dropped when it disappears. The log isn't persisted: it's 8 h in memory
+  per session, capped at 512 entries.
+
+### UsageHistory **(P1→v1)**: `GET /usage/history`
+
+```json
+{"from": 1789913600.0, "to": 1790000000.0, "hours": 24,
+ "limits": {
+   "claude.five_hour": {"provider": "claude",
+                        "points": [[1789913600.0, 41.3], …, [1790000000.0, 62.0]],
+                        "latest": {"t": 1790000000.0, "pct": 62.0, "resets_at": 1790008130},
+                        "burn": Burn},
+   "codex.seven_day": {…}}}
+```
+
+- `points` are `[epoch, pct]`, oldest first: one per usage snapshot (about every 300 s while
+  an agent of that kind runs). They're ready to feed a sparkline.
+- There's one key per limit id seen in the window; ids are as in UsageBlock.
+- The history comes from `<config dir>/usage-history.jsonl`. It's append-only, one line per
+  provider snapshot: `{"t":…, "p":"claude", "l":{"claude.five_hour":[62.0,1790008130],…}}`.
+  It's pruned to 7 days / 10 000 lines, and malformed lines are dropped at load.
+
+**Burn** (also on every UsageBlock limit as `burn`; `null` until there's enough data):
+
+```json
+{"rate_per_hour": 23.76, "eta": 1790005758, "before_reset": true, "at_reset_pct": null,
+ "text": "at this rate: 100% Today at 11:49am"}
+```
+
+- Burn is a least-squares slope over the current reset cycle's points from the last 2 h. It
+  needs at least 2 points spanning at least 10 minutes.
+- `eta` is when 100 % is reached at that rate, and `before_reset` is `true` if that happens
+  before `resets_at`.
+- When the window resets first: `eta: null`, `before_reset: false`, `at_reset_pct: 48.0`,
+  `text: "at this rate: ~48% at reset"`.
+- Other `text` values: `"not rising"` (rate ≤ 0) and `"limit hit"` (≥ 100 %).
 
 ## 6. Server-sent events: `GET /api/v1/events`
 
@@ -358,9 +476,13 @@ data: <one line of JSON>
 | `action` | `{id, kind, uid, ok, detail}` | results of iTerm2 actions (§3) |
 | `toast` | `{level:"info"\|"warn"\|"error", message}` | server toasts (currently only `refreshing…`) |
 | `quota` | `{pct, to}` | a quota prompt becomes pending (clearing it is done with a full `state`, see above) |
+| `stats` **(P1→v1)** | `{seq, stats: Stats}` | a wait starts or ends, or the day rolls over |
+| `stall` **(P1→v1)** | `{uid, title, agent, since, minutes, muted}` (`since` is the last screen change) | a busy session becomes stalled; once per episode. The Swift shell doesn't notify on it yet (it ignores unknown events); the web UI can toast it |
 
 Within one publish the order is: `sessions`, `screens`, `usage`, `prefs`, `capabilities`,
-then `transition`s, then queued `action`/`toast`/`quota`, then (if any) `state`.
+`stats`, then `transition`s, then `stall`s, then queued `action`/`toast`/`quota`, then
+(if any) `state`. The `sessions`, `screens`, `usage`, `prefs` and `stats` payloads carry
+`seq`.
 
 ## 7. `runtime.json`
 
@@ -376,6 +498,13 @@ a backend, read the file, check the pid is alive, and then check
 `GET /api/v1/health` with the Bearer token. Bare `omniwatch` / `omniwatch --browser` do
 exactly this before starting a second backend. In demo mode the file lives in the demo's
 temporary config dir.
+
+### Other files in the config dir **(P1→v1)**
+
+| File | Content |
+|---|---|
+| `stats.json` | `{"day","waiting_seconds","longest_wait_s","answered","waits"}` for today (atomic write) |
+| `usage-history.jsonl` | usage history (see UsageHistory), append-only, pruned to 7 days / 10 000 lines |
 
 ## 8. CLI
 
@@ -452,6 +581,24 @@ How demo mode runs:
   names start empty.
 - **Usage in sync polls.** Usage is fetched on the first poll, on `refresh`, and whenever the
   demo clock has moved on by ≥ the usage interval (300 s).
+- **Seed data (P1→v1 showcase).** Right after the first poll, and after every scenario
+  reset, the engine calls `Engine.apply_demo_seed()`, which reads these optional hooks from
+  `providers.demo`:
+  - `initial_state`: labels and project names. In the default scenario these are
+    `deploy-fix` / `nightly-log`, and projects `api-gateway`, `billing`, `tools`.
+  - `seed_history()`: 8 h of per-session timelines. The default scenario's are hand-written
+    (the ribbons end in each session's live state, and ages such as "idle 22m" are real).
+    Other scenarios get deterministic random walks derived from `--demo-seed`. The same
+    history is replayed into Stats: the default scenario starts at 83 min blocked, longest
+    13 min, 14 answered, 16 waits, 2 active.
+  - `seed_last_change()`: screen-unchanged-since times. `DEMO-0003` (default) and
+    `DEMO-MANY-004` (many) start out **stalled**.
+  - `seed_usage_history()`: 7 days of usage points (hourly, then every 15 min for the last
+    24 h), shaped as a sawtooth that ends at today's percentages. This gives rich
+    sparklines and burn texts like "at this rate: 100% Today at 11:49am" and
+    "~48% at reset". The `empty`, `not-running`, `not-authorized` and `usage-errors`
+    scenarios seed no usage history.
+- The same seed, scenario and `--demo-clock` always produce identical seeds.
 
 ## 10. Differences from DESIGN.md §4.4
 
@@ -497,7 +644,20 @@ How demo mode runs:
 16. **Static files** are served for anything under `web/` (not just `/css/*`, `/js/*`,
     `/assets/*`). Traversal attempts and directory paths get a plain-text `404`, not JSON.
 17. **`runtime.json`** has an extra `demo` field and is only removed by the pid that wrote it.
-18. **CLI:**
+18. **P1 features promoted into v1 (T014). None of these are in §4.4; all are additions.**
+    - Endpoints: `GET /sessions/{uid}/history`, `GET /usage/history`, `GET /stats`,
+      `POST /sessions/{uid}/reveal`.
+    - Session fields: `stalled`, `stalled_since`, `ribbon`.
+    - State `stats`, `summary.stalled`, and `/summary` `stalled` + `stats`.
+    - `burn` on every usage limit.
+    - Prefs `stall_minutes` and `editor`.
+    - SSE events `stats` and `stall`.
+    - Action kind `reveal`.
+    - Files `stats.json` and `usage-history.jsonl`.
+    - DESIGN §3 P1 sketched `GET /sessions/{uid}/history` as a raw ring buffer. The real
+      endpoint returns clipped segments + totals over ≤ 8 h, and the per-session summary is
+      the fixed-resolution `ribbon`.
+19. **CLI:**
     - The stdin-EOF guard needs `--ready-json` or `--parent-pid`, and stdin must be a pipe or
       socket.
     - Demo mode ignores Ultrawatch migration.

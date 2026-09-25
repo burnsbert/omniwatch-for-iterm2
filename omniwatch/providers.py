@@ -53,6 +53,9 @@ class ColorsProvider(Protocol):
 class Opener(Protocol):
     def open_url(self, url: str) -> None: ...
     def open_app(self, name: str) -> None: ...
+    def reveal(self, path: str) -> None: ...
+    def open_editor(self, argv, path: str) -> None: ...
+    def copy_text(self, text: str) -> None: ...
 
 
 class Clock(Protocol):
@@ -152,6 +155,24 @@ class RealOpener:
 
     def open_app(self, name):
         subprocess.run(['open', '-a', name], timeout=config.OSASCRIPT_TIMEOUT)
+
+    def reveal(self, path):
+        """Select `path` in Finder (`open -R`)."""
+        r = subprocess.run(['open', '-R', path], capture_output=True, text=True,
+                           timeout=config.OSASCRIPT_TIMEOUT)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.strip() or 'open -R failed')
+
+    def open_editor(self, argv, path):
+        """Launch the editor detached (argv, never a shell)."""
+        subprocess.Popen(list(argv) + [path], stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+
+    def copy_text(self, text):
+        r = subprocess.run(['pbcopy'], input=text, text=True, timeout=5)
+        if r.returncode != 0:
+            raise RuntimeError('pbcopy failed')
 
 
 class RealClock:

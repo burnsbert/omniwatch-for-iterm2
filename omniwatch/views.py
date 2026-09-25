@@ -113,9 +113,16 @@ def project_slot(tab_color):
     return None
 
 
+def is_stalled(state, last_change, now, stall_seconds):
+    """Busy with an unchanged (spinner-normalized) screen for at least
+    `stall_seconds` (0 disables)."""
+    return bool(stall_seconds) and state == H.BUSY and \
+        now - last_change >= stall_seconds
+
+
 def session_view(s, *, numbers, paths, agents_snapshot, kinds, colors,
                  tracker, store, started, now, debug_rule, home,
-                 fresh_seconds):
+                 fresh_seconds, activity=None, stall_seconds=0):
     """One Session object (§4.4.1). Screen text is not included here."""
     agent = kinds.get(s.tty)
     state, since, rule = tracker.state(s.uid)
@@ -156,7 +163,13 @@ def session_view(s, *, numbers, paths, agents_snapshot, kinds, colors,
         'is_dashboard': is_dashboard(s.text),
         'screen_hash': screen_hash(s.text),
         'prompt': prompt,
+        'stalled': False,
+        'stalled_since': None,
+        'ribbon': activity.ribbon(s.uid, now) if activity is not None else None,
     }
+    if is_stalled(state, last_change, now, stall_seconds):
+        view['stalled'] = True
+        view['stalled_since'] = last_change   # screen unchanged since
     if debug_rule:
         view['rule'] = rule
     return view
@@ -177,6 +190,7 @@ def summary(session_views, waiting_uids):
         'agents': sum(1 for s in session_views if s['agent']),
         'waiting': sum(1 for s in session_views if s['state'] == H.WAITING),
         'busy': sum(1 for s in session_views if s['state'] == H.BUSY),
+        'stalled': sum(1 for s in session_views if s.get('stalled')),
         'waiting_uids': [u for u in waiting_uids if u in live],
     }
 
@@ -192,7 +206,7 @@ def summary_endpoint(session_views, summ):
                         'since': s['state_since'], 'agent': s['agent']})
     return {'tabs': summ['tabs'], 'agents': summ['agents'],
             'waiting': summ['waiting'], 'busy': summ['busy'],
-            'waiting_sessions': waiting}
+            'stalled': summ.get('stalled', 0), 'waiting_sessions': waiting}
 
 
 def screens(sessions):
@@ -206,7 +220,7 @@ def iterm_view(status, error, last_poll_at, poll_ms, stale):
 
 
 def usage_block(kind, snap, show_dollars, now, stale_since=None,
-                has_credentials=None):
+                has_credentials=None, burn=None):
     """UsageBlock (§4.4.1) for 'claude' or 'codex'.
 
     status: ok | inactive | error | stale | no_credentials. `snap` is the
@@ -223,6 +237,8 @@ def usage_block(kind, snap, show_dollars, now, stale_since=None,
         now_dt = datetime.fromtimestamp(now, timezone.utc)
         block['limits'] = USAGE_PROVIDERS[kind](
             snap.data, show_dollars=show_dollars, now=now_dt)
+        for limit in block['limits']:
+            limit['burn'] = burn(limit['id']) if burn is not None else None
     if snap.ok:
         block['status'] = 'ok'
     elif snap.data:

@@ -196,13 +196,14 @@ class TestReadRoutes(ServerTestCase):
         j = self.req('GET', '/api/v1/state').json
         self.assertEqual(set(j), {'version', 'seq', 'server_time', 'demo', 'iterm', 'summary',
                                   'windows', 'sessions', 'screens', 'usage', 'prefs',
-                                  'projects', 'capabilities', 'quota_prompt'})
+                                  'projects', 'capabilities', 'quota_prompt', 'stats'})
         self.assertEqual(j['summary']['waiting'], 2)
         self.assertEqual(len(j['screens']), 4)
 
     def test_summary(self):
         j = self.req('GET', '/api/v1/summary').json
-        self.assertEqual(set(j), {'tabs', 'agents', 'waiting', 'busy', 'waiting_sessions'})
+        self.assertEqual(set(j), {'tabs', 'agents', 'waiting', 'busy', 'stalled',
+                                  'waiting_sessions', 'stats'})
         self.assertEqual(j['waiting_sessions'][0]['uid'], fp.UID_WAIT)
 
     def test_diagnostics(self):
@@ -336,6 +337,10 @@ class TestCommandRoutes(ServerTestCase):
     def test_shutdown(self):
         r = self.req('POST', '/api/v1/shutdown')
         self.assertEqual((r.status, r.json), (200, {'ok': True}))
+        # the 200 is written before on_shutdown runs, so allow it a moment
+        deadline = time.time() + 2
+        while not self.shutdowns and time.time() < deadline:
+            time.sleep(0.01)
         self.assertEqual(self.shutdowns, [True])
 
     def test_internal_error_500(self):
@@ -365,6 +370,43 @@ class TestDemoRoutes(ServerTestCase):
         self.assertEqual(r.json['scenario'], 'empty')
         self.assertEqual(self.req('GET', '/api/v1/state').json['sessions'], [])
         self.assertError(self.req('POST', '/api/v1/demo/scenario', {'name': 'zzz'}), 422, 'invalid')
+
+
+class TestP1Routes(ServerTestCase):
+    def test_history(self):
+        r = self.req('GET', '/api/v1/sessions/%s/history' % fp.UID_WAIT)
+        self.assertEqual(r.status, 200)
+        self.assertEqual(set(r.json), {'uid', 'from', 'to', 'hours', 'segments', 'totals',
+                                       'transitions'})
+        self.assertEqual(r.json['hours'], 8)
+        self.assertEqual(self.req('GET', '/api/v1/sessions/%s/history?hours=2' % fp.UID_WAIT)
+                         .json['hours'], 2.0)
+        for q in ('abc', '0', '9', 'nan', '-1'):
+            self.assertError(self.req('GET', '/api/v1/sessions/%s/history?hours=%s'
+                                      % (fp.UID_WAIT, q)), 400, 'bad_request')
+        self.assertError(self.req('GET', '/api/v1/sessions/nope/history'), 404, 'not_found')
+
+    def test_usage_history(self):
+        r = self.req('GET', '/api/v1/usage/history')
+        self.assertEqual((r.status, r.json['hours']), (200, 24))
+        self.assertIn('claude.five_hour', r.json['limits'])
+        self.assertEqual(self.req('GET', '/api/v1/usage/history?hours=168').status, 200)
+        self.assertError(self.req('GET', '/api/v1/usage/history?hours=169'), 400, 'bad_request')
+
+    def test_stats(self):
+        r = self.req('GET', '/api/v1/stats')
+        self.assertEqual(set(r.json), {'day', 'waiting_seconds', 'longest_wait_s', 'answered',
+                                       'waits', 'active'})
+
+    def test_reveal(self):
+        r = self.req('POST', '/api/v1/sessions/%s/reveal' % fp.UID_WAIT, {'target': 'copy_path'})
+        self.assertEqual(r.status, 202)
+        self.assertRegex(r.json['action_id'], r'^a-\d+$')
+        self.assertError(self.req('POST', '/api/v1/sessions/%s/reveal' % fp.UID_WAIT,
+                                  {'target': 'x'}), 422, 'invalid')
+        self.assertError(self.req('POST', '/api/v1/sessions/%s/reveal' % fp.UID_WAIT,
+                                  {'target': 'finder', 'path': '/etc'}, auth='cookie'),
+                         403, 'forbidden')      # cookie write without Origin
 
 
 def read_events(resp, count, timeout=5):
