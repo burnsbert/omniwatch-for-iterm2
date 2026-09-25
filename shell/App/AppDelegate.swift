@@ -22,6 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var keepOnTopMenuItem: NSMenuItem?
     private var themeFromWeb = false
     private var demoMode: Bool
+    let loginAgent = LaunchAgent(agentsDir: LaunchAgent.defaultAgentsDir())
+    let settings = ShellSettings(store: UserDefaults.standard)
+    weak var launchAtLoginMenuItem: NSMenuItem?
+    weak var menuBarOnlyMenuItem: NSMenuItem?
 
     init(options: LaunchOptions) {
         self.options = options
@@ -55,8 +59,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = StatusItemController(app: self)
 
         registerHotKeys()
+        repairLoginAgent()
+        updateNativeToggles()
         startSupervisor()
-        windowController.show()
+        if options.launchedAtLogin {
+            log.log("launched at login: staying in the menu bar")
+        } else {
+            windowController.show()
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -189,13 +199,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let badge = BadgeFormatter.badge(s.waiting)
                 NSApp.dockTile.badgeLabel = badge.isEmpty ? nil : badge
                 windowController.setWaiting(s.waiting)
-                notifications.prune(waiting: Set(model.waitingSessions.map { $0.uid }))
+                notifications.prune(waiting: Set(model.waitingSessions.map { $0.uid }), stalled: model.stalledUids)
             case .prefsChanged(let p):
                 windowController.setKeepOnTop(p.keepOnTop)
                 keepOnTopMenuItem?.state = p.keepOnTop ? .on : .off
                 if !themeFromWeb { applyTheme(p.theme) }
             case .becameWaiting(let t):
                 attention(t)
+            case .becameStalled(let e):
+                stalled(e)
             case .actionFailed(let kind, let detail):
                 log.log("action \(kind) failed: \(detail)")
             case .hello(let version, let demo):
@@ -220,6 +232,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Stall notice: a banner only (no sound — it's not a request for input).
+    private func stalled(_ e: StallEvent) {
+        let focus = FocusContext(appActive: NSApp.isActive, windowKey: windowController.window.isKeyWindow,
+                                 visibleUids: visibleUids)
+        switch NotificationPolicy.decideStall(e, prefs: model.prefs, focus: focus, session: model.session(e.uid),
+                                              now: model.serverNow()) {
+        case .post(let title, let body):
+            notifications.post(uid: e.uid, title: title, body: body, kind: .stalled)
+        case .suppress(let why):
+            log.log("stall notification for \(e.uid.prefix(8)) suppressed: \(why)")
+        }
+    }
+
     private func applyTheme(_ theme: String) {
         switch theme {
         case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -236,6 +261,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notifications.refreshStatus { [weak self] s in
                 self?.windowController.bridge.nativeEvent(["type": "notifyPermission", "status": s])
             }
+            sendNativeSettings()
+        case .launchAtLogin(let on):
+            setLaunchAtLogin(on)
+        case .menuBarOnly(let on):
+            setMenuBarOnly(on)
         case .theme(let v):
             themeFromWeb = true
             applyTheme(v)
@@ -292,6 +322,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController.setKeepOnTop(on)
         keepOnTopMenuItem?.state = on ? .on : .off
         if let api = api { api.send(api.patchPrefsRequest(["keep_on_top": on])) }
+    }
+
+    // MARK: launch at login / menu-bar-only
+
+    var launchAtLogin: Bool { loginAgent.isEnabled }
+    var menuBarOnly: Bool { settings.menuBarOnly }
+
+    private func repairLoginAgent() {
+        do {
+            if try loginAgent.repairIfNeeded(appPath: Bundle.main.bundlePath) {
+                log.log("login item retargeted at \(Bundle.main.bundlePath)")
+            }
+        } catch {
+            log.log("login item repair failed: \(error)")
+        }
+    }
+
+    func setLaunchAtLogin(_ on: Bool) {
+        var err: String?
+        do {
+            try loginAgent.setEnabled(on, appPath: Bundle.main.bundlePath)
+            log.log("launch at login \(on ? "on" : "off") (\(loginAgent.plistURL.path))")
+        } catch {
+            err = "\(error)"
+            log.log("launch at login change failed: \(error)")
+        }
+        updateNativeToggles()
+        sendNativeSettings(error: err)
+    }
+
+    func setMenuBarOnly(_ on: Bool) {
+        settings.menuBarOnly = on
+        let wasVisible = windowController.window.isVisible
+        NSApp.setActivationPolicy(on ? .accessory : .regular)
+        if wasVisible {
+            // Switching policy can deactivate the app and hide its window; bring it back.
+            DispatchQueue.main.async { [weak self] in self?.windowController.show() }
+        }
+        updateNativeToggles()
+        sendNativeSettings()
+    }
+
+    private func updateNativeToggles() {
+        launchAtLoginMenuItem?.state = launchAtLogin ? .on : .off
+        menuBarOnlyMenuItem?.state = menuBarOnly ? .on : .off
+    }
+
+    private func sendNativeSettings(error: String? = nil) {
+        windowController.bridge.nativeEvent(BridgeJS.nativeSettings(launchAtLogin: launchAtLogin,
+                                                                    menuBarOnly: menuBarOnly, error: error))
     }
 
     func openLog() { NSWorkspace.shared.open(logsDir.appendingPathComponent("backend.log")) }

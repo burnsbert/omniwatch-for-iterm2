@@ -16,5 +16,6 @@ if options.selfTest {
 let app = NSApplication.shared
 let delegate = AppDelegate(options: options)
 app.delegate = delegate
-app.setActivationPolicy(.regular)
+// Menu-bar-only mode (no Dock icon) is decided before anything shows.
+app.setActivationPolicy(ShellSettings(store: UserDefaults.standard).menuBarOnly ? .accessory : .regular)
 app.run()

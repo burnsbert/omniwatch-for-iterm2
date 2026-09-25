@@ -9,11 +9,14 @@ public struct Summary: Decodable, Equatable {
     public var agents = 0
     public var waiting = 0
     public var busy = 0
+    /// Busy sessions whose screen hasn't changed for `prefs.stall_minutes` (P1 stall detection).
+    public var stalled = 0
     public var waitingUids: [String] = []
 
-    public init(tabs: Int = 0, agents: Int = 0, waiting: Int = 0, busy: Int = 0, waitingUids: [String] = []) {
+    public init(tabs: Int = 0, agents: Int = 0, waiting: Int = 0, busy: Int = 0, stalled: Int = 0,
+                waitingUids: [String] = []) {
         self.tabs = tabs; self.agents = agents; self.waiting = waiting; self.busy = busy
-        self.waitingUids = waitingUids
+        self.stalled = stalled; self.waitingUids = waitingUids
     }
 
     public init(from decoder: Decoder) throws {
@@ -22,10 +25,11 @@ public struct Summary: Decodable, Equatable {
         agents = try c.decodeIfPresent(Int.self, forKey: .agents) ?? 0
         waiting = try c.decodeIfPresent(Int.self, forKey: .waiting) ?? 0
         busy = try c.decodeIfPresent(Int.self, forKey: .busy) ?? 0
+        stalled = try c.decodeIfPresent(Int.self, forKey: .stalled) ?? 0
         waitingUids = try c.decodeIfPresent([String].self, forKey: .waitingUids) ?? []
     }
 
-    enum CodingKeys: String, CodingKey { case tabs, agents, waiting, busy, waitingUids }
+    enum CodingKeys: String, CodingKey { case tabs, agents, waiting, busy, stalled, waitingUids }
 }
 
 public struct PromptOption: Decodable, Equatable {
@@ -78,15 +82,17 @@ public struct SessionInfo: Decodable, Equatable {
     public var attention: Bool
     public var muted: Bool
     public var prompt: Prompt?
+    public var stalled: Bool
+    public var stalledSince: Double?
 
     public init(uid: String, title: String = "", displayName: String = "", tabLabel: String = "",
                 pathDisplay: String = "", agent: String? = nil, state: String? = nil,
                 stateSince: Double? = nil, attention: Bool = false, muted: Bool = false,
-                prompt: Prompt? = nil) {
+                prompt: Prompt? = nil, stalled: Bool = false, stalledSince: Double? = nil) {
         self.uid = uid; self.title = title; self.displayName = displayName; self.tabLabel = tabLabel
         self.pathDisplay = pathDisplay; self.agent = agent; self.state = state
         self.stateSince = stateSince; self.attention = attention; self.muted = muted
-        self.prompt = prompt
+        self.prompt = prompt; self.stalled = stalled; self.stalledSince = stalledSince
     }
 
     public init(from decoder: Decoder) throws {
@@ -102,11 +108,13 @@ public struct SessionInfo: Decodable, Equatable {
         attention = try c.decodeIfPresent(Bool.self, forKey: .attention) ?? false
         muted = try c.decodeIfPresent(Bool.self, forKey: .muted) ?? false
         prompt = try c.decodeIfPresent(Prompt.self, forKey: .prompt)
+        stalled = try c.decodeIfPresent(Bool.self, forKey: .stalled) ?? false
+        stalledSince = try c.decodeIfPresent(Double.self, forKey: .stalledSince)
     }
 
     enum CodingKeys: String, CodingKey {
         case uid, title, displayName, tabLabel, pathDisplay, agent, state, stateSince
-        case attention, muted, prompt
+        case attention, muted, prompt, stalled, stalledSince
     }
 
     /// Best human title: backend `title` (P-24) → display name → path → uid prefix.
@@ -120,16 +128,22 @@ public struct NotificationPrefs: Decodable, Equatable {
     public var enabled = true
     /// What a plain click on a notification does: "goto" (iTerm2) or "show" (Omniwatch).
     public var click = "goto"
+    /// Tolerant: not in the backend's pref whitelist yet; absent = stall notifications on
+    /// (`prefs.stall_minutes = 0` turns stall detection off entirely).
+    public var stall = true
 
-    public init(enabled: Bool = true, click: String = "goto") { self.enabled = enabled; self.click = click }
+    public init(enabled: Bool = true, click: String = "goto", stall: Bool = true) {
+        self.enabled = enabled; self.click = click; self.stall = stall
+    }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         click = try c.decodeIfPresent(String.self, forKey: .click) ?? "goto"
+        stall = try c.decodeIfPresent(Bool.self, forKey: .stall) ?? true
     }
 
-    enum CodingKeys: String, CodingKey { case enabled, click }
+    enum CodingKeys: String, CodingKey { case enabled, click, stall }
 }
 
 public struct Prefs: Decodable, Equatable {
@@ -138,11 +152,15 @@ public struct Prefs: Decodable, Equatable {
     public var keepOnTop = false
     public var closeWindowOnQ = true
     public var notifications = NotificationPrefs()
+    /// Minutes of busy + unchanged screen before a session counts as stalled; 0 = off.
+    public var stallMinutes = 10
 
     public init(theme: String = "system", sound: Bool = false, keepOnTop: Bool = false,
-                closeWindowOnQ: Bool = true, notifications: NotificationPrefs = NotificationPrefs()) {
+                closeWindowOnQ: Bool = true, notifications: NotificationPrefs = NotificationPrefs(),
+                stallMinutes: Int = 10) {
         self.theme = theme; self.sound = sound; self.keepOnTop = keepOnTop
         self.closeWindowOnQ = closeWindowOnQ; self.notifications = notifications
+        self.stallMinutes = stallMinutes
     }
 
     public init(from decoder: Decoder) throws {
@@ -152,9 +170,10 @@ public struct Prefs: Decodable, Equatable {
         keepOnTop = try c.decodeIfPresent(Bool.self, forKey: .keepOnTop) ?? false
         closeWindowOnQ = try c.decodeIfPresent(Bool.self, forKey: .closeWindowOnQ) ?? true
         notifications = try c.decodeIfPresent(NotificationPrefs.self, forKey: .notifications) ?? NotificationPrefs()
+        stallMinutes = try c.decodeIfPresent(Int.self, forKey: .stallMinutes) ?? 10
     }
 
-    enum CodingKeys: String, CodingKey { case theme, sound, keepOnTop, closeWindowOnQ, notifications }
+    enum CodingKeys: String, CodingKey { case theme, sound, keepOnTop, closeWindowOnQ, notifications, stallMinutes }
 }
 
 public struct ScreenText: Decodable, Equatable {
@@ -188,6 +207,7 @@ public struct Hello: Decodable, Equatable {
 /// Full `state` event / `GET /api/v1/state` (only the parts the shell uses).
 public struct StateDoc: Decodable {
     public var seq: Int
+    public var serverTime: Double?
     public var demo: Bool
     public var summary: Summary
     public var sessions: [SessionInfo]
@@ -197,6 +217,7 @@ public struct StateDoc: Decodable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         seq = try c.decodeIfPresent(Int.self, forKey: .seq) ?? 0
+        serverTime = try c.decodeIfPresent(Double.self, forKey: .serverTime)
         demo = try c.decodeIfPresent(Bool.self, forKey: .demo) ?? false
         summary = try c.decodeIfPresent(Summary.self, forKey: .summary) ?? Summary()
         sessions = try c.decodeIfPresent([SessionInfo].self, forKey: .sessions) ?? []
@@ -204,7 +225,7 @@ public struct StateDoc: Decodable {
         prefs = try c.decodeIfPresent(Prefs.self, forKey: .prefs) ?? Prefs()
     }
 
-    enum CodingKeys: String, CodingKey { case seq, demo, summary, sessions, screens, prefs }
+    enum CodingKeys: String, CodingKey { case seq, serverTime, demo, summary, sessions, screens, prefs }
 }
 
 /// `sessions` event: `{seq, sessions, summary, windows, iterm}`.
@@ -279,6 +300,75 @@ public struct Transition: Decodable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey { case uid, from, to, at, title, agent, prompt, muted }
+}
+
+/// `stall` event (P1 stall detection, engine.py `_stall_events`):
+/// `{uid, title, agent, since, minutes, muted}` — sent once when a busy session's screen has
+/// been unchanged for `prefs.stall_minutes`. Every field but `uid` is optional.
+public struct StallEvent: Decodable, Equatable {
+    public var uid: String
+    public var title: String
+    public var agent: String?
+    public var since: Double?
+    public var minutes: Int?
+    public var muted: Bool
+
+    public init(uid: String, title: String = "", agent: String? = nil, since: Double? = nil,
+                minutes: Int? = nil, muted: Bool = false) {
+        self.uid = uid; self.title = title; self.agent = agent; self.since = since
+        self.minutes = minutes; self.muted = muted
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        uid = try c.decode(String.self, forKey: .uid)
+        title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        agent = try c.decodeIfPresent(String.self, forKey: .agent)
+        since = try c.decodeIfPresent(Double.self, forKey: .since)
+        minutes = try c.decodeIfPresent(Int.self, forKey: .minutes)
+        muted = try c.decodeIfPresent(Bool.self, forKey: .muted) ?? false
+    }
+
+    enum CodingKeys: String, CodingKey { case uid, title, agent, since, minutes, muted }
+}
+
+/// `GET /api/v1/summary`: `{tabs, agents, waiting, busy, stalled, waiting_sessions:[{uid,title,since,agent}]}`.
+public struct SummaryResponse: Decodable, Equatable {
+    public struct Waiting: Decodable, Equatable {
+        public var uid: String
+        public var title: String
+        public var since: Double?
+        public var agent: String?
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            uid = try c.decode(String.self, forKey: .uid)
+            title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+            since = try c.decodeIfPresent(Double.self, forKey: .since)
+            agent = try c.decodeIfPresent(String.self, forKey: .agent)
+        }
+
+        enum CodingKeys: String, CodingKey { case uid, title, since, agent }
+    }
+
+    public var tabs: Int
+    public var agents: Int
+    public var waiting: Int
+    public var busy: Int
+    public var stalled: Int
+    public var waitingSessions: [Waiting]
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tabs = try c.decodeIfPresent(Int.self, forKey: .tabs) ?? 0
+        agents = try c.decodeIfPresent(Int.self, forKey: .agents) ?? 0
+        waiting = try c.decodeIfPresent(Int.self, forKey: .waiting) ?? 0
+        busy = try c.decodeIfPresent(Int.self, forKey: .busy) ?? 0
+        stalled = try c.decodeIfPresent(Int.self, forKey: .stalled) ?? 0
+        waitingSessions = try c.decodeIfPresent([Waiting].self, forKey: .waitingSessions) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey { case tabs, agents, waiting, busy, stalled, waitingSessions }
 }
 
 /// `action` event: `{id, kind, uid, ok, detail}`.

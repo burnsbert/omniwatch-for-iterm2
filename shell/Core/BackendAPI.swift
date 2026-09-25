@@ -59,6 +59,7 @@ public struct BackendAPI {
 
     public func shutdownRequest() -> URLRequest { request("POST", "/api/v1/shutdown") }
     public func healthRequest() -> URLRequest { request("GET", "/api/v1/health") }
+    public func summaryRequest() -> URLRequest { request("GET", "/api/v1/summary") }
     public func stateRequest() -> URLRequest { request("GET", "/api/v1/state") }
 
     public typealias Completion = (_ status: Int, _ body: Data?, _ error: Error?) -> Void

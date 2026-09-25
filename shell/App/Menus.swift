@@ -22,10 +22,22 @@ enum Menus {
             return m
         }
 
+        let launchAtLogin = ActionMenuItem("Launch at Login") { [weak app] in
+            guard let app = app else { return }
+            app.setLaunchAtLogin(!app.launchAtLogin)
+        }
+        let menuBarOnly = ActionMenuItem("Menu Bar Only (Hide Dock Icon)") { [weak app] in
+            guard let app = app else { return }
+            app.setMenuBarOnly(!app.menuBarOnly)
+        }
+        app.launchAtLoginMenuItem = launchAtLogin
+        app.menuBarOnlyMenuItem = menuBarOnly
         _ = submenu("Omniwatch", [
             std("About Omniwatch", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), ""),
             .separator(),
             cmd("Settings…", .settingsOpen, ","),
+            launchAtLogin,
+            menuBarOnly,
             ActionMenuItem("Setup Guide…") { [weak app] in app?.showMainWindow(); app?.sendCommand(.onboardingOpen) },
             .separator(),
             std("Hide Omniwatch", #selector(NSApplication.hide(_:)), "h"),

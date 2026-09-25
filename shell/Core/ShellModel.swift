@@ -8,6 +8,8 @@ public enum ShellEffect: Equatable {
     case prefsChanged(Prefs)
     /// A session just transitioned to `waiting` (candidate for notification + sound).
     case becameWaiting(Transition)
+    /// A busy session was just flagged stalled (`stall` event).
+    case becameStalled(StallEvent)
     case actionFailed(kind: String, detail: String)
 }
 
@@ -22,8 +24,21 @@ public final class ShellModel {
     /// Latest raw screen text per uid (for the notification body fallback).
     public private(set) var screens: [String: String] = [:]
     public private(set) var decodeErrors = 0
+    /// `server_time − local time` from the last `hello`/`state`. Backend timestamps use the
+    /// provider clock (the demo clock in demo mode, API.md §5), so ages must be computed in
+    /// server time: `serverNow(localNow) − state_since`.
+    public private(set) var serverOffset: Double = 0
+
+    /// Injectable for tests.
+    public var localClock: () -> Double = { Date().timeIntervalSince1970 }
 
     public init() {}
+
+    public func serverNow(_ local: Double? = nil) -> Double { (local ?? localClock()) + serverOffset }
+
+    private func noteServerTime(_ t: Double?) {
+        if let t = t, t > 0 { serverOffset = t - localClock() }
+    }
 
     @discardableResult
     public func apply(_ event: SSEEvent) -> [ShellEffect] {
@@ -41,10 +56,12 @@ public final class ShellModel {
         switch event.type {
         case "hello":
             let h = try dec.decode(Hello.self, from: data)
+            noteServerTime(h.serverTime)
             demo = h.demo
             return [.hello(version: h.version, demo: h.demo)]
         case "state":
             let s = try dec.decode(StateDoc.self, from: data)
+            noteServerTime(s.serverTime)
             let oldPrefs = prefs, hadState = hasState, oldSummary = summary
             sessions = s.sessions
             summary = s.summary
@@ -76,7 +93,12 @@ public final class ShellModel {
             return [.prefsChanged(prefs)]
         case "transition":
             let t = try dec.decode(Transition.self, from: data)
+            if t.to == "stalled" && t.from != "stalled" { // tolerated alternative encoding
+                return [.becameStalled(StallEvent(uid: t.uid, title: t.title, agent: t.agent, since: t.at, muted: t.muted))]
+            }
             return t.to == "waiting" && t.from != "waiting" ? [.becameWaiting(t)] : []
+        case "stall", "stalled":
+            return [.becameStalled(try dec.decode(StallEvent.self, from: data))]
         case "action":
             let a = try dec.decode(ActionResult.self, from: data)
             return a.ok ? [] : [.actionFailed(kind: a.kind, detail: a.detail)]
@@ -96,6 +118,9 @@ public final class ShellModel {
     }
 
     public func session(_ uid: String) -> SessionInfo? { sessions.first { $0.uid == uid } }
+
+    /// Uids currently flagged stalled (for pruning stall notifications).
+    public var stalledUids: Set<String> { Set(sessions.filter { $0.stalled }.map { $0.uid }) }
 
     /// "Go to next waiting in iTerm2": the longest-waiting session after `lastUid` in the
     /// waiting order, wrapping around; the first one if `lastUid` isn't waiting anymore.
@@ -139,6 +164,26 @@ public enum NotificationPolicy {
         }
         return .post(title: "\(displayTitle(t, session: session)) needs you",
                      body: body(t, session: session, screenText: screenText))
+    }
+
+    /// Stall notification: same off/muted/visible rules as waiting, plus the stall switches
+    /// (`prefs.stall_minutes == 0`, tolerant `prefs.notifications.stall == false`).
+    public static func decideStall(_ e: StallEvent, prefs: Prefs, focus: FocusContext,
+                                   session: SessionInfo?, now: Double) -> NotificationDecision {
+        guard prefs.notifications.enabled else { return .suppress("notifications off") }
+        guard prefs.stallMinutes > 0, prefs.notifications.stall else { return .suppress("stall notifications off") }
+        if e.muted || (session?.muted ?? false) { return .suppress("muted") }
+        if focus.appActive && focus.windowKey && focus.visibleUids.contains(e.uid) { return .suppress("visible") }
+        let title = !e.title.isEmpty ? e.title : (session?.bestTitle ?? String(e.uid.prefix(8)))
+        let since = e.since ?? session?.stalledSince
+        let quiet: String
+        if let s = since, now > s {
+            quiet = BadgeFormatter.age(now - s)
+        } else {
+            quiet = "\(e.minutes ?? prefs.stallMinutes)m"
+        }
+        return .post(title: "\(title) may be stalled",
+                     body: "Busy with no screen change for \(quiet). Check on it?")
     }
 
     public static func shouldPlaySound(_ t: Transition, prefs: Prefs, session: SessionInfo?) -> Bool {

@@ -40,7 +40,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         } else {
             menu.addItem(disabled(BadgeFormatter.menuHeader(waiting.count)))
         }
-        let now = Date().timeIntervalSince1970
+        let now = app.model.serverNow() // demo mode runs on the demo clock (API.md §5)
         for s in waiting.prefix(20) {
             var label = s.bestTitle
             if !s.tabLabel.isEmpty { label += " · tab \(s.tabLabel)" }
@@ -56,6 +56,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(show)
         }
         if waiting.count > 20 { menu.addItem(disabled("…and \(waiting.count - 20) more")) }
+        let stalled = app.model.sessions.filter { $0.stalled }
+        if !stalled.isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(disabled(stalled.count == 1 ? "1 session may be stalled" : "\(stalled.count) sessions may be stalled"))
+            for s in stalled.prefix(10) {
+                var label = s.bestTitle
+                if let since = s.stalledSince { label += " · quiet \(BadgeFormatter.age(now - since))" }
+                let uid = s.uid
+                menu.addItem(ActionMenuItem("⏸ " + label) { [weak app] in app?.gotoSession(uid) })
+            }
+        }
         menu.addItem(.separator())
         let next = ActionMenuItem("Go to Next Waiting in iTerm2") { [weak app] in app?.gotoNextWaiting() }
         next.isEnabled = !waiting.isEmpty
@@ -66,6 +77,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let top = ActionMenuItem("Keep Window on Top") { [weak app] in app?.toggleKeepOnTop() }
         top.state = app.keepOnTop ? .on : .off
         menu.addItem(top)
+        let login = ActionMenuItem("Launch at Login") { [weak app] in
+            guard let app = app else { return }
+            app.setLaunchAtLogin(!app.launchAtLogin)
+        }
+        login.state = app.launchAtLogin ? .on : .off
+        menu.addItem(login)
+        let barOnly = ActionMenuItem("Menu Bar Only") { [weak app] in
+            guard let app = app else { return }
+            app.setMenuBarOnly(!app.menuBarOnly)
+        }
+        barOnly.state = app.menuBarOnly ? .on : .off
+        menu.addItem(barOnly)
         menu.addItem(.separator())
         menu.addItem(ActionMenuItem("Quit Omniwatch") { NSApp.terminate(nil) })
     }

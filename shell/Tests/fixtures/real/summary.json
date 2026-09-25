@@ -1,0 +1,38 @@
+{
+ "agents": 5,
+ "busy": 2,
+ "stalled": 1,
+ "stats": {
+  "active": [
+   {
+    "since": 1789999760.0,
+    "uid": "DEMO-0001"
+   },
+   {
+    "since": 1789999880.0,
+    "uid": "DEMO-0007"
+   }
+  ],
+  "answered": 14,
+  "day": "2026-09-21",
+  "longest_wait_s": 780,
+  "waiting_seconds": 4980,
+  "waits": 16
+ },
+ "tabs": 11,
+ "waiting": 2,
+ "waiting_sessions": [
+  {
+   "agent": "claude",
+   "since": 1789999760.0,
+   "title": "deploy-fix",
+   "uid": "DEMO-0001"
+  },
+  {
+   "agent": "codex",
+   "since": 1789999880.0,
+   "title": "~/src/mobile-app",
+   "uid": "DEMO-0007"
+  }
+ ]
+}

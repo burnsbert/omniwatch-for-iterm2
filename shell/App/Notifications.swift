@@ -57,7 +57,9 @@ final class NotificationController: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func post(uid: String, title: String, body: String) {
+    enum Kind: String { case waiting, stalled }
+
+    func post(uid: String, title: String, body: String, kind: Kind = .waiting) {
         let go = { [weak self] in
             guard let self = self else { return }
             let c = UNMutableNotificationContent()
@@ -67,11 +69,11 @@ final class NotificationController: NSObject, UNUserNotificationCenterDelegate {
             c.threadIdentifier = uid
             c.userInfo = ["uid": uid]
             c.sound = nil // the "Sound on attention" pref plays NSSound itself (P-33)
-            let id = "waiting-\(uid)" // a newer wait for the same session replaces the old banner
+            let id = "\(kind.rawValue)-\(uid)" // a newer wait for the same session replaces the old banner
             self.center.add(UNNotificationRequest(identifier: id, content: c, trigger: nil)) { err in
                 if let e = err { self.log("notification post failed: \(e.localizedDescription)") }
             }
-            self.posted.insert(uid)
+            self.posted.insert(id)
         }
         if authorization == "notDetermined" || authorization == "unknown" {
             requestPermission { status, _ in if status == "granted" { go() } }
@@ -80,11 +82,12 @@ final class NotificationController: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    /// Removes delivered banners for sessions that stopped waiting.
-    func prune(waiting: Set<String>) {
-        let stale = posted.subtracting(waiting)
+    /// Removes delivered banners for sessions that stopped waiting / stopped being stalled.
+    func prune(waiting: Set<String>, stalled: Set<String>) {
+        let keep = Set(waiting.map { "\(Kind.waiting.rawValue)-\($0)" } + stalled.map { "\(Kind.stalled.rawValue)-\($0)" })
+        let stale = posted.subtracting(keep)
         guard !stale.isEmpty else { return }
-        center.removeDeliveredNotifications(withIdentifiers: stale.map { "waiting-\($0)" })
+        center.removeDeliveredNotifications(withIdentifiers: Array(stale))
         posted.subtract(stale)
     }
 

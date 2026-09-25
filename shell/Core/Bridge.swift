@@ -15,6 +15,9 @@ public enum BridgeMessage: Equatable {
     case closeWindow
     /// Onboarding "Try the demo" (§2.10): restart the supervised backend with/without `--demo`.
     case restartBackend(demo: Bool)
+    /// Settings toggles for native-only options; native answers with `nativeSettings`.
+    case launchAtLogin(Bool)
+    case menuBarOnly(Bool)
     case unknown(String)
 
     public static func parse(_ body: Any) -> BridgeMessage? {
@@ -32,6 +35,9 @@ public enum BridgeMessage: Equatable {
             guard let a = d["uids"] as? [Any] else { return nil }
             return .visible(a.compactMap { $0 as? String })
         case "closeWindow": return .closeWindow
+        case "launchAtLogin", "menuBarOnly":
+            guard let n = d["value"] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
+            return type == "launchAtLogin" ? .launchAtLogin(n.boolValue) : .menuBarOnly(n.boolValue)
         case "restartBackend":
             let n = d["demo"] as? NSNumber
             return .restartBackend(demo: n.map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false)
@@ -80,6 +86,13 @@ public enum BridgeJS {
 
     public static func command(_ c: NativeCommand, args: [String: Any]? = nil) -> String {
         command(c.rawValue, args: args)
+    }
+
+    /// `nativeEvent({type:"nativeSettings", launchAtLogin, menuBarOnly, launchAtLoginError?})`.
+    public static func nativeSettings(launchAtLogin: Bool, menuBarOnly: Bool, error: String? = nil) -> [String: Any] {
+        var e: [String: Any] = ["type": "nativeSettings", "launchAtLogin": launchAtLogin, "menuBarOnly": menuBarOnly]
+        if let err = error { e["launchAtLoginError"] = err }
+        return e
     }
 
     public static func nativeEvent(_ event: [String: Any]) -> String {

@@ -1,0 +1,736 @@
+{
+ "capabilities": {
+  "debug_rule": false,
+  "reply": true,
+  "tab_colors": true
+ },
+ "demo": true,
+ "iterm": {
+  "error": "",
+  "last_poll_at": 1790000000.0,
+  "poll_ms": 0,
+  "stale": false,
+  "status": "ok"
+ },
+ "prefs": {
+  "close_window_on_q": true,
+  "debug_rule": false,
+  "editor": "",
+  "font_scale": 1.0,
+  "grid_all": false,
+  "hint_bar": true,
+  "keep_on_top": false,
+  "notifications": {
+   "click": "goto",
+   "enabled": true
+  },
+  "onboarding_done": false,
+  "projects_open": false,
+  "quick_reply": true,
+  "show_dollars": false,
+  "sort": "natural",
+  "sound": false,
+  "split_ratio": 0.42,
+  "stall_minutes": 10,
+  "theme": "system",
+  "usage_strip": "expanded",
+  "view": "split"
+ },
+ "projects": [
+  {
+   "color": "blue",
+   "name": "api-gateway",
+   "slot": 1
+  },
+  {
+   "color": "purple",
+   "name": "billing",
+   "slot": 2
+  },
+  {
+   "color": "green",
+   "name": "tools",
+   "slot": 3
+  },
+  {
+   "color": "red",
+   "name": "",
+   "slot": 4
+  },
+  {
+   "color": "yellow",
+   "name": "",
+   "slot": 5
+  }
+ ],
+ "quota_prompt": {
+  "pct": 91.0,
+  "to": "you@example.com"
+ },
+ "screens": {
+  "DEMO-0001": {
+   "hash": "8e85f529",
+   "text": "⏺ I've finished wiring up the new /healthz endpoint. Let me verify the\n  build still passes before handing this back to you.\n\n╭──────────────────────────────────────────────────────────────────────╮\n│ Bash command                                                          │\n│                                                                       │\n│   npm run build                                                       │\n│   Compile the TypeScript sources                                     │\n│                                                                       │\n│ Do you want to proceed?                                               │\n│ ❯ 1. Yes                                                              │\n│   2. Yes, and don't ask again for npm run commands                    │\n│   3. No, and tell Claude what to do differently (esc)                 │\n╰──────────────────────────────────────────────────────────────────────╯"
+  },
+  "DEMO-0002": {
+   "hash": "6575653e",
+   "text": "❯ 2\n\n✢ Refactoring invoice totals…\n  ⎿  Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools\n──────────────────────────────────────────────────────────────────────────\n❯\n──────────────────────────────────────────────────────────────────────────\n  Sonnet 4.6 | billing (main) [61% remaining]\n  ⏵⏵ auto mode on (shift+tab to cycle)"
+  },
+  "DEMO-0003": {
+   "hash": "251bc641",
+   "text": "  Updated src/components/Nav.tsx\n\n• Working (4m 02s • Esc to interrupt)\n\n  bundling web-app for production"
+  },
+  "DEMO-0004": {
+   "hash": "86a4293c",
+   "text": "devbox:infra user$"
+  },
+  "DEMO-0005": {
+   "hash": "cbcd9e09",
+   "text": "2026-09-25T14:02:11Z INFO  request completed path=/healthz status=200 dur=4ms\n2026-09-25T14:02:12Z INFO  request completed path=/orders status=201 dur=41ms\n2026-09-25T14:02:12Z WARN  slow query detected table=orders dur=812ms\n2026-09-25T14:02:13Z INFO  request completed path=/orders/123 status=200 dur=9ms"
+  },
+  "DEMO-0006": {
+   "hash": "db4bacc8",
+   "text": "⏺ Backfill complete: 2024-Q3 shard 12/12 finished without errors.\n\n──────────────────────────────────────────────────────────────────────────\n❯\n──────────────────────────────────────────────────────────────────────────\n  Sonnet 4.6 | data-pipeline (main) [88% remaining]"
+  },
+  "DEMO-0007": {
+   "hash": "41a8786e",
+   "text": "  I need to regenerate the app icons before the release build.\n\n  bundle exec fastlane icons\n\n  Would you like to run the following command?\n\n  Yes (y)\n  No, and tell Codex what to do differently (esc)"
+  },
+  "DEMO-0008": {
+   "hash": "798f2399",
+   "text": "▛▞ ULTRAWATCH v1.2.3 — that's this dashboard\n9 tabs · 4 agents · 1 waiting"
+  },
+  "DEMO-0009": {
+   "hash": "86a4293c",
+   "text": "devbox:infra user$"
+  },
+  "DEMO-0010": {
+   "hash": "77165233",
+   "text": "devbox:~ user$"
+  },
+  "DEMO-0011": {
+   "hash": "77165233",
+   "text": "devbox:~ user$"
+  }
+ },
+ "seq": 7,
+ "server_time": 1790000000.0,
+ "sessions": [
+  {
+   "agent": "claude",
+   "agents": [
+    "claude"
+   ],
+   "attention": true,
+   "display_name": "deploy-fix",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "deploy-fix",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "node",
+   "path": "~/src/api-gateway",
+   "path_display": "~/src/api-gateway",
+   "project": 1,
+   "prompt": {
+    "free_text": false,
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes",
+      "selected": true
+     },
+     {
+      "key": "2",
+      "label": "Yes, and don't ask again for npm run commands",
+      "selected": false
+     },
+     {
+      "key": "3",
+      "label": "No, and tell Claude what to do differently (esc)",
+      "selected": false
+     }
+    ],
+    "question": "Do you want to proceed?"
+   },
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "iiiibbbwbbbbbwwbbbbbbbiibbbbbbbbbbbbbbbbbbbibbbw",
+    "end": 1790000400
+   },
+   "screen_hash": "8e85f529",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "waiting",
+   "state_since": 1789999760.0,
+   "tab_color": "blue",
+   "tab_index": 1,
+   "tab_label": "1.1",
+   "title": "deploy-fix",
+   "tty": "/dev/ttys001",
+   "uid": "DEMO-0001",
+   "window_id": 101,
+   "window_number": 1
+  },
+  {
+   "agent": "claude",
+   "agents": [
+    "claude"
+   ],
+   "attention": false,
+   "display_name": "node",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": true,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "node",
+   "path": "~/src/billing",
+   "path_display": "~/src/billing",
+   "project": 2,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "bbbbbbbbiiiiiiiiibbbbwbbbbbbbbbbwbbbbbbbbbbbbbbb",
+    "end": 1790000400
+   },
+   "screen_hash": "6575653e",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "busy",
+   "state_since": 1789996520.0,
+   "tab_color": "purple",
+   "tab_index": 2,
+   "tab_label": "1.2",
+   "title": "~/src/billing",
+   "tty": "/dev/ttys002",
+   "uid": "DEMO-0002",
+   "window_id": 101,
+   "window_number": 1
+  },
+  {
+   "agent": "codex",
+   "agents": [
+    "codex"
+   ],
+   "attention": false,
+   "display_name": "node",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": true,
+   "label": "",
+   "last_change": 1789999140.0,
+   "muted": false,
+   "name": "node",
+   "path": "~/src/web-app",
+   "path_display": "~/src/web-app",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "iiiiiiiiiiiibbbbbbbbbbbbbbbbbbbbbbbiiibbbbbbiibb",
+    "end": 1790000400
+   },
+   "screen_hash": "251bc641",
+   "session_index": 1,
+   "stalled": true,
+   "stalled_since": 1789999140.0,
+   "state": "busy",
+   "state_since": 1789999160.0,
+   "tab_color": null,
+   "tab_index": 3,
+   "tab_label": "1.3",
+   "title": "~/src/web-app",
+   "tty": "/dev/ttys003",
+   "uid": "DEMO-0003",
+   "window_id": 101,
+   "window_number": 1
+  },
+  {
+   "agent": null,
+   "agents": [],
+   "attention": false,
+   "display_name": "zsh",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "zsh",
+   "path": "~/src/infra",
+   "path_display": "~/src/infra",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+    "end": 1790000400
+   },
+   "screen_hash": "86a4293c",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "active",
+   "state_since": 1790000000.0,
+   "tab_color": null,
+   "tab_index": 4,
+   "tab_label": "1.4",
+   "title": "~/src/infra",
+   "tty": "/dev/ttys004",
+   "uid": "DEMO-0004",
+   "window_id": 101,
+   "window_number": 1
+  },
+  {
+   "agent": null,
+   "agents": [],
+   "attention": false,
+   "display_name": "nightly-log",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": true,
+   "label": "nightly-log",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "zsh",
+   "path": "~/src/api-gateway",
+   "path_display": "~/src/api-gateway",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "end": 1790000400
+   },
+   "screen_hash": "cbcd9e09",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "active",
+   "state_since": 1789971200.0,
+   "tab_color": null,
+   "tab_index": 5,
+   "tab_label": "1.5",
+   "title": "nightly-log",
+   "tty": "/dev/ttys005",
+   "uid": "DEMO-0005",
+   "window_id": 101,
+   "window_number": 1
+  },
+  {
+   "agent": "claude",
+   "agents": [
+    "claude"
+   ],
+   "attention": false,
+   "display_name": "node",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "node",
+   "path": "~/src/data-pipeline",
+   "path_display": "~/src/data-pipeline",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "bbbbbwbbbbbbbbbbbiiiiiiiiibbbbbbbbbbbbbbbbbbbiii",
+    "end": 1790000400
+   },
+   "screen_hash": "db4bacc8",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "idle",
+   "state_since": 1789998680.0,
+   "tab_color": null,
+   "tab_index": 1,
+   "tab_label": "2.1",
+   "title": "~/src/data-pipeline",
+   "tty": "/dev/ttys006",
+   "uid": "DEMO-0006",
+   "window_id": 205,
+   "window_number": 2
+  },
+  {
+   "agent": "codex",
+   "agents": [
+    "codex"
+   ],
+   "attention": true,
+   "display_name": "node",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "node",
+   "path": "~/src/mobile-app",
+   "path_display": "~/src/mobile-app",
+   "project": null,
+   "prompt": {
+    "free_text": false,
+    "options": [
+     {
+      "key": "y",
+      "label": "Yes",
+      "selected": false
+     },
+     {
+      "key": "esc",
+      "label": "No, and tell Codex what to do differently",
+      "selected": false
+     }
+    ],
+    "question": "Would you like to run the following command?"
+   },
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "iiiiiiiiiiiiiiiiiiiiibbbbbbbbbbbbbbbwbbbbbbbbbbw",
+    "end": 1790000400
+   },
+   "screen_hash": "41a8786e",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "waiting",
+   "state_since": 1789999880.0,
+   "tab_color": null,
+   "tab_index": 2,
+   "tab_label": "2.2",
+   "title": "~/src/mobile-app",
+   "tty": "/dev/ttys007",
+   "uid": "DEMO-0007",
+   "window_id": 205,
+   "window_number": 2
+  },
+  {
+   "agent": null,
+   "agents": [],
+   "attention": false,
+   "display_name": "python3",
+   "fresh_until": null,
+   "is_dashboard": true,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "python3",
+   "path": "~/src/ultrawatch-for-iterm2",
+   "path_display": "~/src/ultrawatch-for-iterm2",
+   "project": 3,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+    "end": 1790000400
+   },
+   "screen_hash": "798f2399",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "active",
+   "state_since": 1790000000.0,
+   "tab_color": "green",
+   "tab_index": 3,
+   "tab_label": "2.3",
+   "title": "~/src/ultrawatch-for-iterm2",
+   "tty": "/dev/ttys008",
+   "uid": "DEMO-0008",
+   "window_id": 205,
+   "window_number": 2
+  },
+  {
+   "agent": null,
+   "agents": [],
+   "attention": false,
+   "display_name": "zsh",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "zsh",
+   "path": "~/src/docs-site",
+   "path_display": "~/src/docs-site",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+    "end": 1790000400
+   },
+   "screen_hash": "86a4293c",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "active",
+   "state_since": 1790000000.0,
+   "tab_color": null,
+   "tab_index": 4,
+   "tab_label": "2.4",
+   "title": "~/src/docs-site",
+   "tty": "/dev/ttys009",
+   "uid": "DEMO-0009",
+   "window_id": 205,
+   "window_number": 2
+  },
+  {
+   "agent": null,
+   "agents": [],
+   "attention": false,
+   "display_name": "zsh",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "zsh",
+   "path": "~",
+   "path_display": "~",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+    "end": 1790000400
+   },
+   "screen_hash": "77165233",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "active",
+   "state_since": 1790000000.0,
+   "tab_color": null,
+   "tab_index": 5,
+   "tab_label": "2.5",
+   "title": "~",
+   "tty": "/dev/ttys010",
+   "uid": "DEMO-0010",
+   "window_id": 205,
+   "window_number": 2
+  },
+  {
+   "agent": null,
+   "agents": [],
+   "attention": false,
+   "display_name": "zsh",
+   "fresh_until": null,
+   "is_dashboard": false,
+   "is_processing": false,
+   "label": "",
+   "last_change": 1790000000.0,
+   "muted": false,
+   "name": "zsh",
+   "path": "~",
+   "path_display": "~",
+   "project": null,
+   "prompt": null,
+   "ribbon": {
+    "bucket_s": 600,
+    "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+    "end": 1790000400
+   },
+   "screen_hash": "77165233",
+   "session_index": 1,
+   "stalled": false,
+   "stalled_since": null,
+   "state": "active",
+   "state_since": 1790000000.0,
+   "tab_color": null,
+   "tab_index": 6,
+   "tab_label": "2.6",
+   "title": "~",
+   "tty": "/dev/ttys011",
+   "uid": "DEMO-0011",
+   "window_id": 205,
+   "window_number": 2
+  }
+ ],
+ "stats": {
+  "active": [
+   {
+    "since": 1789999760.0,
+    "uid": "DEMO-0001"
+   },
+   {
+    "since": 1789999880.0,
+    "uid": "DEMO-0007"
+   }
+  ],
+  "answered": 14,
+  "day": "2026-09-21",
+  "longest_wait_s": 780,
+  "waiting_seconds": 4980,
+  "waits": 16
+ },
+ "summary": {
+  "agents": 5,
+  "busy": 2,
+  "stalled": 1,
+  "tabs": 11,
+  "waiting": 2,
+  "waiting_uids": [
+   "DEMO-0001",
+   "DEMO-0007"
+  ]
+ },
+ "usage": {
+  "claude": {
+   "fetched_at": 1790000000.0,
+   "limits": [
+    {
+     "burn": {
+      "at_reset_pct": null,
+      "before_reset": true,
+      "eta": 1790005783,
+      "rate_per_hour": 23.65,
+      "text": "at this rate: 100% Today at 11:49am"
+     },
+     "id": "claude.five_hour",
+     "label": "Session",
+     "level": "yellow",
+     "pct": 62.0,
+     "projection": {
+      "at": 1790006077,
+      "kind": "pace",
+      "text": "on pace to hit session limit Today at 11:54am"
+     },
+     "reset_text": "2h 14m (Today at 12:28pm)",
+     "resets_at": 1790008084,
+     "window": "5h"
+    },
+    {
+     "burn": {
+      "at_reset_pct": null,
+      "before_reset": true,
+      "eta": 1790336752,
+      "rate_per_hour": 0.74,
+      "text": "at this rate: 100% Friday at 7:45am"
+     },
+     "id": "claude.seven_day",
+     "label": "Weekly",
+     "level": "green",
+     "pct": 31.0,
+     "projection": {
+      "at": 1790360615,
+      "kind": "pace",
+      "text": "on pace to hit weekly limit Friday at 2:23pm"
+     },
+     "reset_text": "5d 2h (Saturday at 1:13pm)",
+     "resets_at": 1790442784,
+     "window": "7d"
+    },
+    {
+     "burn": {
+      "at_reset_pct": 48.0,
+      "before_reset": false,
+      "eta": null,
+      "rate_per_hour": 0.29,
+      "text": "at this rate: ~48% at reset"
+     },
+     "id": "claude.seven_day_sonnet",
+     "label": "Sonnet",
+     "level": "green",
+     "pct": 12.0,
+     "projection": null,
+     "reset_text": "5d 2h (Saturday at 1:13pm)",
+     "resets_at": 1790442784,
+     "window": "7d"
+    },
+    {
+     "burn": {
+      "at_reset_pct": null,
+      "before_reset": true,
+      "eta": 1790158589,
+      "rate_per_hour": 0.2,
+      "text": "at this rate: 100% Wednesday at 6:16am"
+     },
+     "has_cap": true,
+     "id": "claude.monthly",
+     "label": "Monthly cap",
+     "level": "red",
+     "limit_display": null,
+     "pct": 91.0,
+     "projection": {
+      "at": 1790174540,
+      "kind": "pace",
+      "text": "on pace to hit monthly limit Wednesday at 10:42am"
+     },
+     "reset_text": "9d 13h (Oct 1 at 12:00am)",
+     "resets_at": 1790827200,
+     "window": "month"
+    }
+   ],
+   "stale_since": null,
+   "status": "ok"
+  },
+  "codex": {
+   "fetched_at": 1790000000.0,
+   "limits": [
+    {
+     "burn": {
+      "at_reset_pct": 51.5,
+      "before_reset": false,
+      "eta": null,
+      "rate_per_hour": 10.86,
+      "text": "at this rate: ~52% at reset"
+     },
+     "id": "codex.five_hour",
+     "label": "Session",
+     "level": "green",
+     "pct": 40.0,
+     "projection": null,
+     "reset_text": "1h 3m (Today at 11:17am)",
+     "resets_at": 1790003824,
+     "window": "5h"
+    },
+    {
+     "burn": {
+      "at_reset_pct": null,
+      "before_reset": true,
+      "eta": 1790087102,
+      "rate_per_hour": 0.66,
+      "text": "at this rate: 100% Tomorrow at 10:25am"
+     },
+     "id": "codex.seven_day",
+     "label": "Weekly",
+     "level": "red",
+     "pct": 84.0,
+     "projection": {
+      "at": 1790096003,
+      "kind": "pace",
+      "text": "on pace to hit Codex 7d limit Tomorrow at 12:53pm"
+     },
+     "reset_text": "1d 3h (Tomorrow at 2:13pm)",
+     "resets_at": 1790100784,
+     "window": "7d"
+    }
+   ],
+   "stale_since": null,
+   "status": "ok"
+  }
+ },
+ "version": "1.0.0",
+ "windows": [
+  {
+   "id": 101,
+   "number": 1
+  },
+  {
+   "id": 205,
+   "number": 2
+  }
+ ]
+}

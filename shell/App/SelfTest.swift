@@ -83,6 +83,11 @@ final class SelfTest {
         let hbody = health.body.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         step(health.status == 200 && (hbody?["ok"] as? Bool) == true, "GET /api/v1/health with Bearer → \(health.status)")
 
+        let sumResp = api.sendSync(api.summaryRequest())
+        let summary = sumResp.body.flatMap { try? OmniwatchJSON.decoder().decode(SummaryResponse.self, from: $0) }
+        step(sumResp.status == 200 && summary != nil,
+             "GET /api/v1/summary decodes (waiting \(summary?.waiting ?? -1), stalled \(summary?.stalled ?? -1))")
+
         let model = ShellModel()
         var types: [String] = []
         let sse = EventStreamClient(ready: r)
@@ -93,6 +98,8 @@ final class SelfTest {
         step(types.first == "hello", "SSE first event is hello (got \(types.first ?? "none"))")
         step(gotState, "SSE state received (events: \(types.prefix(5).joined(separator: ", ")))")
         step(model.summary.waiting > 0, "summary.waiting = \(model.summary.waiting) (> 0)")
+        step(model.decodeErrors == 0, "SSE payloads decode (\(model.decodeErrors) errors)")
+        if let s = summary { step(s.waiting == model.summary.waiting, "/summary waiting matches SSE state") }
 
         var shutdownStatus = 0
         let stopped = proc.stopAndWait(grace: 2) {

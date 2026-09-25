@@ -15,6 +15,8 @@ struct LaunchOptions {
     var demo = false
     /// `--backend X`: overrides `$OMNIWATCH_BACKEND` (script/zipapp path, or `-m module`).
     var backend: String?
+    /// Passed by the LaunchAgent: start quietly in the menu bar, without showing the window.
+    var launchedAtLogin = false
 
     static func parse(_ argv: [String]) -> LaunchOptions {
         var o = LaunchOptions()
@@ -25,6 +27,7 @@ struct LaunchOptions {
             case "--self-test": o.selfTest = true
             case "--version": o.version = true
             case "--demo": o.demo = true
+            case LaunchAgent.loginFlag: o.launchedAtLogin = true
             case "--backend":
                 if i + 1 < argv.count { o.backend = argv[i + 1]; i += 1 }
             default:
