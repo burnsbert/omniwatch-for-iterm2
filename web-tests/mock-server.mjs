@@ -560,6 +560,8 @@ export async function startMockServer({
     if (name === 'quota' && !store.quota) store.quota = { pct: 91, to: 'you@example.com' };
     st.quota_prompt = store.quota;
     st.capabilities = { ...st.capabilities, reply: store.prefs.quick_reply !== false, debug_rule: !!store.prefs.debug_rule };
+    // Seeded scenario labels are re-applied on every reset and win (API.md §9).
+    for (const s of st.sessions) if (s.label) store.labels[s.uid] = s.label;
     for (const s of st.sessions) applyStore(s);
     recomputeSummary(st);
   }
@@ -1014,7 +1016,9 @@ export async function startMockServer({
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
-    const { pathname } = url;
+    // Use the raw path (WHATWG URL would resolve '..'); the real server doesn't normalize.
+    const rawPath = req.url.split('?')[0];
+    const pathname = /(^|\/)\.\.?(\/|$)/.test(rawPath) ? rawPath : url.pathname;
     const addr = server.address();
     const okHosts = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
     try {
