@@ -404,7 +404,7 @@ def serve(opts, stdout=None, stderr=None, install_signals=True, watch_stdin_fd=0
 # ---------------------------------------------------------------------
 
 def doctor(opts, stdout=None):
-    from omniwatch import config, engine as engine_mod, runtime
+    from omniwatch import config, engine as engine_mod, runtime, vendor
     stdout = stdout or sys.stdout
     providers = build_providers(opts)[0]
     clock = providers.clock
@@ -436,6 +436,7 @@ def doctor(opts, stdout=None):
         'version': __version__,
         'python': {'path': sys.executable, 'version': sys.version.split()[0]},
         'iterm2_package': engine_mod.iterm2_package_available(),
+        'iterm2_package_source': vendor.package_source(),
         'iterm': {'status': iterm_status, 'detail': detail},
         'automation': automation,
         'claude_credentials': creds(providers.usage_claude),
@@ -456,7 +457,8 @@ def doctor(opts, stdout=None):
         'Omniwatch %s' % __version__,
         'python           %s (%s)' % (report['python']['path'], report['python']['version']),
         'iterm2 package   %s%s' % (yn(report['iterm2_package']),
-                                   '' if report['iterm2_package'] else
+                                   ' (%s)' % report['iterm2_package_source']
+                                   if report['iterm2_package'] else
                                    ' — tab colors need it: make install-colors'),
         'iTerm2           %s — %s' % (iterm_status, detail),
         'automation       %s' % automation,

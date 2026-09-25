@@ -221,8 +221,9 @@ by live status from the diagnostics endpoint:
 1. **Control iTerm2** (required) — explains the Automation prompt;
    **Grant access** triggers it; turns green once a snapshot succeeds.
 2. **Tab colors & projects** (optional) — checks whether the backend's
-   Python can `import iterm2`, with a copyable `make install-colors`
-   command and the iTerm2 setting to flip.
+   Python can `import iterm2` (installed by default by `install.sh` into
+   Omniwatch's own vendor dir), with a copyable `make install-colors`
+   command to retry it and the iTerm2 setting to flip.
 3. **Notifications** (app) / browser permission (browser mode).
 
 A **Try the demo** button restarts the backend in demo mode, so a new user

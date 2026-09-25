@@ -46,9 +46,24 @@ class TestInstallScript(TripwireTestCase):
         self.assertIn('set -euo pipefail', self.src)
 
     def test_declares_every_required_flag(self):
-        for flag in ('--prefix', '--no-app', '--with-colors', '--with-plugin',
-                    '--no-open'):
+        for flag in ('--prefix', '--no-app', '--no-colors', '--with-colors',
+                    '--with-plugin', '--no-open'):
             self.assertIn(flag, self.src, flag)
+
+    def test_with_colors_is_a_deprecated_no_op(self):
+        self.assertIn('deprecated', self.src)
+
+    def test_no_break_system_packages(self):
+        needle = '-'.join(['break', 'system', 'packages'])
+        self.assertNotIn(needle, self.src)
+
+    def test_installs_iterm2_into_a_vendor_dir_by_default(self):
+        self.assertIn('VENDOR_DIR', self.src)
+        self.assertIn('vendor', self.src)
+        self.assertIn('--target', self.src)
+
+    def test_prints_python_api_reminder(self):
+        self.assertIn('Enable Python API', self.src)
 
     def test_with_plugin_targets_autolaunch_dir(self):
         self.assertIn('AutoLaunch', self.src)

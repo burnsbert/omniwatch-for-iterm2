@@ -4,7 +4,7 @@
 #   git clone https://github.com/burnsbert/omniwatch-for-iterm2 && \
 #     cd omniwatch-for-iterm2 && ./install.sh
 #
-# Usage: install.sh [--prefix DIR] [--no-app] [--with-colors]
+# Usage: install.sh [--prefix DIR] [--no-app] [--no-colors]
 #                    [--with-plugin] [--no-open]
 #
 #   --prefix DIR    install under DIR instead of $HOME (DIR/Applications,
@@ -14,9 +14,16 @@
 #   --no-app        skip building/installing Omniwatch.app; browser-only
 #                   mode (`omniwatch --browser`). Automatic if `swiftc`
 #                   isn't found.
-#   --with-colors   also `pip install iterm2` for the tab-color feature
-#                   (network install; opt-in, never run in automated
-#                   tests — see Makefile's check-install).
+#   --no-colors     skip installing the `iterm2` package (tab colors).
+#                   By default it's installed into Omniwatch's own vendor
+#                   directory (DIR-or-$HOME/.local/share/omniwatch/vendor)
+#                   — never the system or Homebrew Python — so pip never
+#                   refuses it as an externally-managed environment. If
+#                   pip or the network fails, install.sh warns and
+#                   continues; tab colors just show as unavailable
+#                   (`omniwatch doctor`).
+#   --with-colors   deprecated no-op: this is now the default. Kept so
+#                   old instructions/scripts still work.
 #   --with-plugin   also install the iTerm2 status-bar plugin (WP10,
 #                   docs/DESIGN.md §4.8) into
 #                   DIR-or-$HOME/Library/Application Support/iTerm2/
@@ -31,9 +38,12 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+log() { echo "install.sh: $*"; }
+die() { echo "install.sh: error: $*" >&2; exit 1; }
+
 PREFIX=""
 NO_APP=0
-WITH_COLORS=0
+NO_COLORS=0
 NO_OPEN=0
 WITH_PLUGIN=0
 
@@ -42,7 +52,10 @@ while [ $# -gt 0 ]; do
     --prefix) PREFIX="$2"; shift 2 ;;
     --prefix=*) PREFIX="${1#--prefix=}"; shift ;;
     --no-app) NO_APP=1; shift ;;
-    --with-colors) WITH_COLORS=1; shift ;;
+    --no-colors) NO_COLORS=1; shift ;;
+    --with-colors)
+      log "note: --with-colors is deprecated — installing iterm2 is the default now. Ignoring."
+      shift ;;
     --with-plugin) WITH_PLUGIN=1; shift ;;
     --no-open) NO_OPEN=1; shift ;;
     -h|--help)
@@ -59,9 +72,7 @@ SHARE_DEST_DIR="$HOME_DIR/.local/share/omniwatch"
 SHIM_PATH="$BIN_DEST_DIR/omniwatch"
 ZIPAPP_DEST="$SHARE_DEST_DIR/omniwatch.pyz"
 APP_DEST="$APP_DEST_DIR/Omniwatch.app"
-
-log() { echo "install.sh: $*"; }
-die() { echo "install.sh: error: $*" >&2; exit 1; }
+VENDOR_DIR="$SHARE_DEST_DIR/vendor"
 
 # ---- 1. Checks (docs/DESIGN.md §6, §4.7 PythonLocator) --------------------
 
@@ -75,10 +86,13 @@ HAVE_DEVTOOLS=0
 if xcode-select -p >/dev/null 2>&1; then HAVE_DEVTOOLS=1; fi
 
 find_python() {
-  # Prefer an interpreter that can `import iterm2` (tab colors), but any
-  # >=3.9 interpreter is acceptable (docs/DESIGN.md §4.7/§8).
+  # Any >=3.9 interpreter is acceptable (docs/DESIGN.md §4.7/§8); the
+  # `iterm2` package no longer needs to already be importable — it's
+  # installed into our own vendor dir below, for whichever interpreter
+  # this picks. Prefer a Homebrew/python.org python3 over the Command
+  # Line Tools' /usr/bin/python3 shim (checked last, and skipped
+  # entirely without developer tools — see below).
   candidates="${OMNIWATCH_PYTHON:-} python3 /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3"
-  best=""
   for c in $candidates; do
     [ -n "$c" ] || continue
     command -v "$c" >/dev/null 2>&1 || continue
@@ -86,14 +100,10 @@ find_python() {
     # Running the CLT shim would pop the developer-tools install dialog.
     if [ "$resolved" = "/usr/bin/python3" ] && [ "$HAVE_DEVTOOLS" -eq 0 ]; then continue; fi
     "$resolved" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null || continue
-    if "$resolved" -c 'import iterm2' >/dev/null 2>&1; then
-      echo "$resolved"
-      return 0
-    fi
-    [ -n "$best" ] || best="$resolved"
+    echo "$resolved"
+    return 0
   done
-  [ -n "$best" ] || return 1
-  echo "$best"
+  return 1
 }
 
 PYTHON_BIN="$(find_python)" || die "no Python >=3.9 found (checked \$OMNIWATCH_PYTHON, python3, Homebrew, /usr/local, /usr/bin)."
@@ -162,16 +172,31 @@ case ":$PATH:" in
      log "  add it, e.g.: echo 'export PATH=\"$BIN_DEST_DIR:\$PATH\"' >> ~/.zshrc" ;;
 esac
 
-# ---- 4. Optional extras ----------------------------------------------------
-
-if [ "$WITH_COLORS" -eq 1 ]; then
-  log "installing the iterm2 package for tab colors (network)..."
-  if [ "$HAVE_DEVTOOLS" -eq 1 ]; then
-    PYTHON="$PYTHON_BIN" make -C "$REPO_DIR" install-colors
+# Tab colors (docs/DESIGN.md §4.2/§6): `iterm2` (and its own deps,
+# protobuf + websockets) install into our own vendor dir — never the
+# system or Homebrew Python's site-packages — so pip never refuses it as
+# an externally-managed environment. Uses the SAME interpreter recorded
+# above so compiled wheels match. Idempotent: each run replaces the
+# vendor dir cleanly. Best-effort: a pip/network failure warns and
+# continues — install.sh must still succeed either way, with tab colors
+# just unavailable (`omniwatch doctor`).
+if [ "$NO_COLORS" -eq 0 ]; then
+  log "installing iterm2 into the vendor dir (tab colors): $VENDOR_DIR"
+  rm -rf "$VENDOR_DIR"
+  mkdir -p "$VENDOR_DIR"
+  if "$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check \
+      --target "$VENDOR_DIR" iterm2; then
+    log "tab colors: iterm2 installed"
   else
-    "$PYTHON_BIN" -m pip install iterm2 || "$PYTHON_BIN" -m pip install --break-system-packages iterm2
+    log "warning: could not install iterm2 (pip/network failure) — tab colors will show as unavailable."
+    log "  re-run later with: make install-colors"
+    rm -rf "$VENDOR_DIR"
   fi
+else
+  log "--no-colors: skipped installing iterm2 (tab colors will be unavailable)"
 fi
+
+# ---- 4. Optional extras ----------------------------------------------------
 
 if [ "$WITH_PLUGIN" -eq 1 ]; then
   plugin_dest="$HOME_DIR/Library/Application Support/iTerm2/Scripts/AutoLaunch"
@@ -196,4 +221,5 @@ else
   log "--no-open: not launching anything."
 fi
 
+log "Tab colors: enable iTerm2 → Settings → General → Magic → Enable Python API"
 log "done."

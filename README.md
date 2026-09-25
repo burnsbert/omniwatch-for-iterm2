@@ -112,7 +112,7 @@ Omniwatch installer (docs/DESIGN.md §6 "Install"). One command, no sudo:
   git clone https://github.com/burnsbert/omniwatch-for-iterm2 && \
     cd omniwatch-for-iterm2 && ./install.sh
 
-Usage: install.sh [--prefix DIR] [--no-app] [--with-colors]
+Usage: install.sh [--prefix DIR] [--no-app] [--no-colors]
                    [--with-plugin] [--no-open]
 
   --prefix DIR    install under DIR instead of $HOME (DIR/Applications,
@@ -122,9 +122,16 @@ Usage: install.sh [--prefix DIR] [--no-app] [--with-colors]
   --no-app        skip building/installing Omniwatch.app; browser-only
                   mode (`omniwatch --browser`). Automatic if `swiftc`
                   isn't found.
-  --with-colors   also `pip install iterm2` for the tab-color feature
-                  (network install; opt-in, never run in automated
-                  tests — see Makefile's check-install).
+  --no-colors     skip installing the `iterm2` package (tab colors).
+                  By default it's installed into Omniwatch's own vendor
+                  directory (DIR-or-$HOME/.local/share/omniwatch/vendor)
+                  — never the system or Homebrew Python — so pip never
+                  refuses it as an externally-managed environment. If
+                  pip or the network fails, install.sh warns and
+                  continues; tab colors just show as unavailable
+                  (`omniwatch doctor`).
+  --with-colors   deprecated no-op: this is now the default. Kept so
+                  old instructions/scripts still work.
   --with-plugin   also install the iTerm2 status-bar plugin (WP10,
                   docs/DESIGN.md §4.8) into
                   DIR-or-$HOME/Library/Application Support/iTerm2/
@@ -164,14 +171,15 @@ is left in place unless you pass `--purge`, which also removes logs.
    card, see [Troubleshooting](docs/TROUBLESHOOTING.md#automation-denied).
 2. **Tab colors & Projects color-assignment (optional).** iTerm2's
    AppleScript API can't read or set tab colors — that needs iTerm2's
-   separate Python API:
-   ```bash
-   make install-colors          # or: ./install.sh --with-colors
-   ```
-   Then in iTerm2: **Settings → General → Magic → Enable Python API.**
+   separate Python API. `install.sh` already installed the `iterm2`
+   package for this by default, into Omniwatch's own vendor directory
+   (never the system or Homebrew Python); all that's left is:
+   **Settings → General → Magic → Enable Python API** in iTerm2.
    Without this, Omniwatch runs exactly the same, minus the colored dot
    and the `1`–`5`/`0` tab-color keys (which toast "tab colors
-   unavailable" instead).
+   unavailable" instead). See
+   [Troubleshooting](docs/TROUBLESHOOTING.md#tab-colors--the-python-api)
+   if it stays unavailable after that.
 3. **Notifications (app mode).** Requested the first time a session
    transitions to waiting, or from Settings. In browser mode, this is the
    browser's own Notification permission instead.

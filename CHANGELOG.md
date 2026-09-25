@@ -53,6 +53,11 @@ a native macOS app that runs in its own window instead of an iTerm2 tab.
 - `omniwatch doctor` and a first-run onboarding sheet for the two most
   common "it shows nothing" problems: iTerm2 not running, and the
   Automation permission not granted.
+- `install.sh` installs the `iterm2` package (tab colors) by default now,
+  into Omniwatch's own vendor directory rather than the system or
+  Homebrew Python — no more PEP 668 "externally managed environment" pip
+  refusals. `--no-colors` opts out; `omniwatch doctor` reports whether
+  it found `iterm2` and from where (vendor dir vs. site-packages).
 - **Ultrawatch migration**: labels, projects, and prefs are imported
   read-only from an existing `~/.config/ultrawatch/state.json` on first
   run.

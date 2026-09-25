@@ -31,7 +31,7 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 
-from omniwatch import __version__, config, itermcolor
+from omniwatch import __version__, config, itermcolor, vendor
 from omniwatch import activity as activity_mod
 from omniwatch import heuristics as H
 from omniwatch import persist
@@ -891,6 +891,7 @@ class Engine:
             'iterm': {'status': status, 'error': doc['iterm']['error']},
             'automation': automation,
             'tab_colors': {'package': iterm2_package_available(),
+                           'package_source': vendor.package_source(),
                            'reachable': doc['capabilities']['tab_colors']},
             'claude_credentials': self._credentials('claude'),
             'codex_credentials': self._credentials('codex'),

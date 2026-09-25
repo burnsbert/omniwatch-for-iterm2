@@ -26,7 +26,7 @@ coverage:
 	@$(PYTHON) -c "import coverage" 2>/dev/null || ( \
 		echo "coverage isn't installed for $(PYTHON)."; \
 		echo "Install it with: $(PYTHON) -m pip install --user coverage"; \
-		echo "(add --break-system-packages if pip refuses as externally managed)"; \
+		echo "(use a venv if pip refuses as an externally-managed environment)"; \
 		exit 1 )
 	$(PYTHON) -m coverage run --source=omniwatch -m unittest discover -s tests
 	$(PYTHON) -m coverage report -m
@@ -115,17 +115,18 @@ dist: dist-pyz dist-app
 install:
 	./install.sh $(INSTALL_ARGS)
 
-# `install.sh --prefix <tmp> --no-open` into a throwaway prefix: verifies
-# the layout, the shim, the app bundle's Info.plist keys, and the
-# codesign, runs install.sh a second time to prove it's idempotent, then
-# uninstalls and verifies cleanup. Never opens the app or any window
-# (docs/DESIGN.md §5, §7 WP8).
+# `install.sh --prefix <tmp> --no-open --no-colors` into a throwaway
+# prefix: verifies the layout, the shim, the app bundle's Info.plist
+# keys, and the codesign, runs install.sh a second time to prove it's
+# idempotent, then uninstalls and verifies cleanup. Never opens the app
+# or any window, and --no-colors keeps this from ever making a real
+# network pip call (docs/DESIGN.md §5, §7 WP8).
 check-install:
 	@set -eu; \
 	tmp="$$(mktemp -d)"; \
 	echo "check-install: prefix=$$tmp"; \
 	trap 'rm -rf "$$tmp"' EXIT; \
-	./install.sh --prefix "$$tmp" --no-open; \
+	./install.sh --prefix "$$tmp" --no-open --no-colors; \
 	test -x "$$tmp/.local/bin/omniwatch" || { echo "FAIL: shim not installed"; exit 1; }; \
 	test -f "$$tmp/.local/share/omniwatch/omniwatch.pyz" || { echo "FAIL: zipapp not installed"; exit 1; }; \
 	if command -v swiftc >/dev/null 2>&1; then \
@@ -148,7 +149,7 @@ check-install:
 		echo "check-install: omniwatch/cli.py doesn't exist yet — skipped shim --version (awaiting WP2)"; \
 	fi; \
 	echo "check-install: re-running install.sh to verify idempotency..."; \
-	./install.sh --prefix "$$tmp" --no-open; \
+	./install.sh --prefix "$$tmp" --no-open --no-colors; \
 	test -x "$$tmp/.local/bin/omniwatch" || { echo "FAIL: shim missing after second install"; exit 1; }; \
 	echo "check-install: idempotent OK"; \
 	./uninstall.sh --prefix "$$tmp" --purge; \
@@ -174,13 +175,19 @@ uninstall-plugin:
 	rm -f "$(PLUGIN_DEST)/omniwatch_status.py" "$(PLUGIN_DEST)/omniwatch_plugin_lib.py"
 	@echo "removed the Omniwatch status-bar plugin from $(PLUGIN_DEST)"
 
-# Optional: iterm2 pip package for the tab-color indicator (see README).
-# Plain `pip install` fails outright on PEP 668 "externally managed"
-# Pythons (e.g. Homebrew's); --break-system-packages is only needed then,
-# so try the plain install first and fall back.
+# Optional: (re-)install the iterm2 pip package for tab colors (see
+# README) into Omniwatch's own vendor dir — install.sh does this by
+# default already; this target is for a manual re-run later (e.g. after
+# a failed network install) or to point at a different vendor dir
+# (`VENDOR_DIR=/tmp/x make install-colors`, used by tests). Installing
+# into our own directory rather than $(PYTHON)'s site-packages means pip
+# never refuses it as an externally-managed environment (PEP 668).
+VENDOR_DIR ?= $(HOME)/.local/share/omniwatch/vendor
 install-colors:
-	$(PYTHON) -m pip install iterm2 || \
-		$(PYTHON) -m pip install --break-system-packages iterm2
+	rm -rf "$(VENDOR_DIR)"
+	mkdir -p "$(VENDOR_DIR)"
+	$(PYTHON) -m pip install --quiet --disable-pip-version-check --target "$(VENDOR_DIR)" iterm2
+	@echo "installed iterm2 into $(VENDOR_DIR) (tab colors)"
 
 clean:
 	rm -rf build dist .coverage htmlcov

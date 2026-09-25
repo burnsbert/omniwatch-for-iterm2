@@ -8,7 +8,8 @@ omniwatch doctor --json   # machine-readable
 ```
 
 It reports the Python interpreter in use, whether `iterm2` can be imported
-(tab colors), one live iTerm2 snapshot and its status, the Automation
+and from where (vendor dir vs. site-packages; tab colors), one live
+iTerm2 snapshot and its status, the Automation
 permission, whether Claude/Codex credentials are present, the config
 directory, the log path, and any backend already running. Most of the
 sections below start by looking at its output.
@@ -67,30 +68,31 @@ implemented yet.
 
 The colored dot next to sessions, and the Projects panel's `1`–`5`/`0`
 tab-color keys, need iTerm2's separate Python API (not exposed over plain
-AppleScript):
+AppleScript). `install.sh` installs the `iterm2` package for this by
+default, into Omniwatch's own vendor directory
+(`~/.local/share/omniwatch/vendor`, or the prefix's equivalent) — never
+the system or Homebrew Python's site-packages, so it never trips PEP
+668's "externally managed environment" pip refusal. All that's left:
 
-1. Install the `iterm2` package for the interpreter Omniwatch's backend
-   actually runs:
-   ```bash
-   make install-colors          # or: ./install.sh --with-colors
-   ```
-   Plain `pip install iterm2` fails on an "externally managed" Python
-   (e.g. Homebrew's, PEP 668); this target retries with
-   `--break-system-packages` automatically. This is safe here — `iterm2`
-   is a small, pure-Python package.
-2. In iTerm2: **Settings → General → Magic → Enable Python API.**
-3. Launch (or relaunch) Omniwatch. The first connection shows a one-time
+1. In iTerm2: **Settings → General → Magic → Enable Python API.**
+2. Launch (or relaunch) Omniwatch. The first connection shows a one-time
    iTerm2 approval dialog for the script.
 
-If it's still unavailable after that, check **which Python** the backend
-is actually using — `omniwatch doctor`'s `python` and `iterm2 package`
-lines. `PythonLocator` prefers an interpreter with `iterm2` importable
-only among its own defaults (`/opt/homebrew/bin/python3`,
-`/usr/local/bin/python3`, `/usr/bin/python3`); an explicit
-`~/.config/omniwatch/config.json` `"python"` path or `$OMNIWATCH_PYTHON`
-always wins even if *that* interpreter doesn't have `iterm2` installed. If
-you set one of those explicitly, install `iterm2` for that interpreter
-specifically, or unset the override.
+If it's still unavailable after that, `omniwatch doctor`'s `iterm2
+package` line reports whether the package was found and where (`vendor`
+or `site-packages`):
+
+- **`no`** — the vendor install didn't happen or failed (e.g. no network
+  during `install.sh`, or `--no-colors` was passed). Re-run it:
+  ```bash
+  make install-colors                 # re-installs into the vendor dir
+  # or: VENDOR_DIR=/some/other/dir make install-colors
+  ```
+- **`yes (vendor)`** — working as intended.
+- **`yes (site-packages)`** — an older install put `iterm2` directly on
+  some interpreter's site-packages (e.g. `make install-colors` from
+  before this vendoring existed); harmless, but `$OMNIWATCH_VENDOR_DIR`
+  can point at a specific directory instead if you need to override it.
 
 Without any of this, Omniwatch runs exactly the same — no error — just
 without the colored dot, and `1`–`5`/`0` toast "tab colors unavailable"
