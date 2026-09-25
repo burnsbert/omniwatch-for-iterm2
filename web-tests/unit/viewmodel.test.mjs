@@ -173,7 +173,7 @@ test('spokenDuration pluralizes', () => {
   assert.equal(spokenDuration(-5), '0 seconds');
 });
 
-test('row tone: waiting amber wins over fresh green (P-29)', () => {
+test('row tone: waiting amber wins over fresh green (P-29; the real demo never sets fresh_until, so this is the only fresh-tint test)', () => {
   assert.equal(rowTone({ state: 'waiting', fresh_until: NOW + 10 }, NOW), 'waiting');
   assert.equal(rowTone({ state: 'idle', fresh_until: NOW + 10 }, NOW), 'fresh');
   assert.equal(rowTone({ state: 'busy', fresh_until: NOW + 10 }, NOW), '');

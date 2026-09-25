@@ -82,8 +82,9 @@ export function createSessionList(ctx, { mode = 'sidebar' } = {}) {
     cssVar(el, '--ow-group-h', `${headH}px`);
 
     text(sortLabel, `sort: ${f.sort}`);
-    text(filterChip, f.filter ? `“${f.filter}” · ${f.matchText}` : '');
-    filterChip.hidden = !f.filter;
+    const filter = f.ui.filter;
+    text(filterChip, filter ? `“${filter}” · ${f.matchText}` : '');
+    filterChip.hidden = !filter;
     if (table) {
       for (const c of TABLE_COLUMNS) {
         if (c.sort) cls(colButtons[c.id], 'is-active', c.sort === f.sort);

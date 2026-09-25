@@ -32,7 +32,7 @@ export function createUsageStrip(ctx) {
     const collapsed = f.prefs.usage_strip === 'collapsed' || f.layout === 'compact';
     const hist = f.ui.usageHistory && f.ui.usageHistory.data;
     const key = JSON.stringify([collapsed, f.ui.usageHistory && f.ui.usageHistory.at, f.layout, m.providers.map((p) => [p.id, p.message && p.message.text,
-      p.limits.map((l) => [l.label, l.pctText, l.tone, l.reset.rel, l.warning && l.warning.text, l.dollars && l.dollars.text])])]);
+      p.limits.map((l) => [l.label, l.pctText, l.tone, l.reset.rel, l.outlook && l.outlook.short, l.dollars && l.dollars.text])])]);
     cls(el, 'is-collapsed', collapsed);
     attr(toggle, 'title', collapsed ? 'Expand usage strip' : 'Collapse usage strip');
     attr(toggle, 'aria-label', collapsed ? 'Expand usage strip' : 'Collapse usage strip');
@@ -65,16 +65,18 @@ export function createUsageStrip(ctx) {
     for (const p of m.providers) {
       const cells = [h('span', { class: 'ow-strip-provider', 'data-agent': p.id }, p.name)];
       for (const l of p.limits) {
-        cells.push(h('span', { class: 'ow-strip-limit', title: l.resetText || l.label }, [
-          h('span', { class: 'ow-strip-lbl' }, l.label),
+        cells.push(h('span', { class: 'ow-strip-limit', title: [l.title, l.resetText].filter(Boolean).join(' · ') }, [
+          h('span', { class: 'ow-strip-lbl' }, STRIP_LABELS[l.label] || l.label),
           h('span', { class: 'ow-strip-pct', 'data-tone': l.tone }, l.pctText),
           meter(l),
           stripSpark(hist, l, f.now),
           l.reset.rel ? h('span', { class: 'ow-strip-reset' }, l.reset.rel) : null,
           l.dollars ? h('span', { class: 'ow-strip-dollars' }, l.dollars.shown ? l.dollars.text : '$ hidden') : null,
         ]));
-        if (l.warning) {
-          cells.push(h('span', { class: 'ow-strip-warn', 'data-tone': l.warning.tone }, [icon('alert', { size: 12 }), l.warning.text]));
+        // One line per provider: only limits that are already ≥ 50 % carry an outlook here.
+        if (l.outlook && l.outlook.alert && l.tone !== 'ok') {
+          cells.push(h('span', { class: 'ow-strip-warn', 'data-tone': l.outlook.tone, title: l.outlook.text },
+            [icon(l.outlook.source === 'burn' ? 'trend' : 'alert', { size: 12 }), l.outlook.short]));
         }
       }
       if (p.message) cells.push(h('span', { class: 'ow-strip-msg', 'data-tone': p.message.tone }, p.message.text));
@@ -85,12 +87,15 @@ export function createUsageStrip(ctx) {
   return { el, update };
 }
 
-/** Last 6 h of a limit, 44 × 14 px, next to the strip meter (hidden when there's no history). */
+// The strip is one line per provider; the cards keep the full names.
+const STRIP_LABELS = { 'Monthly cap': 'Monthly', 'Extra usage': 'Extra' };
+
+/** Last 6 h of a limit, 36 × 14 px, next to the strip meter (hidden when there's no history). */
 function stripSpark(hist, l, now) {
   const series = hist && hist.limits && hist.limits[l.id];
   if (!series) return null;
   const pts = windowPoints(series.points, now - 6 * 3600, now + 60);
-  return sparkline(pts, { width: 44, height: 14, from: now - 6 * 3600, to: now, tone: l.tone, label: `${l.label}, last 6 hours` });
+  return sparkline(pts, { width: 36, height: 14, from: now - 6 * 3600, to: now, tone: l.tone, label: `${l.label}, last 6 hours` });
 }
 
 export function createUsageView(ctx) {
@@ -166,7 +171,7 @@ function limitCard(l, hist, now) {
     meter(l),
     spark ? h('div', { class: 'ow-card-spark' }, [spark, h('div', { class: 'ow-card-spark-axis' }, [h('span', {}, '24h ago'), h('span', {}, 'now')])]) : null,
     h('div', { class: 'ow-card-reset' }, l.resetText || '—'),
-    l.burn ? h('div', { class: 'ow-card-burn', 'data-tone': l.burn.tone }, [icon('trend', { size: 13 }), l.burn.text]) : null,
-    l.warning ? h('div', { class: 'ow-card-warn', 'data-tone': l.warning.tone }, [icon('alert', { size: 13 }), l.warning.text]) : null,
+    l.outlook ? h('div', { class: l.outlook.source === 'burn' ? 'ow-card-burn' : 'ow-card-warn', 'data-tone': l.outlook.tone },
+      [icon(l.outlook.source === 'burn' ? 'trend' : 'alert', { size: 13 }), l.outlook.text]) : null,
   ]);
 }

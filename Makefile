@@ -6,7 +6,7 @@ SYSTEM_PYTHON ?= /usr/bin/python3
 PLUGIN_DEST ?= $(HOME)/Library/Application Support/iTerm2/Scripts/AutoLaunch
 
 .PHONY: test test39 coverage web-unit swift-test app check \
-        e2e screenshots dist dist-pyz dist-app install check-install \
+        e2e screenshots check-pids dist dist-pyz dist-app install check-install \
         install-colors install-plugin uninstall-plugin clean
 
 # ---- Python backend (WP0/WP1; docs/DESIGN.md §5, §7) ---------------------
@@ -54,15 +54,25 @@ app:
 check: test
 	$(PYTHON) -m py_compile omniwatch/*.py
 	$(MAKE) web-unit
+	node scripts/check-pids.mjs
+	node scripts/check-doc-links.mjs
 	@echo "check OK"
 
 # ---- Stubs (later work packages; docs/DESIGN.md §5-§6) --------------------
 
+# Playwright E2E (WP6): chromium + webkit, headless only (the config refuses
+# --headed unless OW_ALLOW_HEADED=1), against the real demo backend.
 e2e:
-	@echo "TODO(WP6): npx playwright test (chromium + webkit, headless-only guard)"
+	cd web-tests && { [ -d node_modules/@playwright/test ] || npm ci --no-audit --no-fund; } && npx playwright test
 
+# docs/screenshots/<name>-<theme>.png from the demo backend (fixed clock + seed).
 screenshots:
-	@echo "TODO(WP6): node scripts/screenshots.mjs (demo mode, dark+light)"
+	cd web-tests && { [ -d node_modules/@playwright/test ] || npm ci --no-audit --no-fund; }
+	node scripts/screenshots.mjs
+
+# Every non-Drop parity row in DESIGN §1 is referenced by a unit/E2E/Python test.
+check-pids:
+	node scripts/check-pids.mjs
 
 # ---- Packaging (WP8; docs/DESIGN.md §6 "Artifacts", §7 WP8) ---------------
 

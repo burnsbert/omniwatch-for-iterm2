@@ -20,8 +20,9 @@ export function createStatsChip(ctx) {
   }, [h('span', { class: 'ow-stats-icon' }, icon('hourglass', { size: 14 })), main, detail]);
   function update(f) {
     const m = f.stats;
-    el.hidden = !m;
-    if (!m) return;
+    // Nothing to say before the first wait of the day (e.g. iTerm2 not running).
+    el.hidden = !m || (m.waits === 0 && m.waitingNow === 0 && m.totalSeconds < 60);
+    if (el.hidden) return;
     text(main, m.chipText);
     text(detail, m.detailText);
     cls(el, 'is-live', m.waitingNow > 0);

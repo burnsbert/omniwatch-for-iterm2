@@ -191,3 +191,33 @@ test('ui state: native settings, histories', () => {
   ui = reduceUi(ui, { type: 'setUsageHistory', data: { b: 2 }, at: 6 });
   assert.deepEqual(ui.usageHistory, { data: { b: 2 }, at: 6 });
 });
+
+test('one outlook per limit: burn wins over the legacy projection (T018)', async () => {
+  const { outlookModel, shortWhen, limitModel: lm } = await import('../../omniwatch/web/js/usage-model.js');
+  const five = ST.usage.claude.limits.find((l) => l.id === 'claude.five_hour');
+  const m = lm(five, { now: NOW });
+  assert.equal(m.outlook.source, 'burn');
+  assert.match(m.outlook.text, /^At this rate: 100% /);
+  assert.match(m.outlook.short, /^100% /);
+  assert.equal(m.outlook.alert, true);
+  const legacy = lm({ ...five, burn: null }, { now: NOW });
+  assert.equal(legacy.outlook.source, 'projection');
+  assert.match(legacy.outlook.short, /^hits limit /);
+  const hit = lm({ ...five, burn: null, projection: { kind: 'hit', at: null, text: 'limit hit' } }, { now: NOW });
+  assert.deepEqual([hit.outlook.short, hit.outlook.tone], ['limit hit', 'danger']);
+  const noAt = lm({ ...five, burn: null, projection: { kind: 'pace', at: null, text: 'on pace' } }, { now: NOW });
+  assert.equal(noAt.outlook.short, 'On pace');
+  assert.equal(lm({ ...five, burn: null, projection: null }, { now: NOW }).outlook, null);
+  const reset = outlookModel({ text: 'At this rate: ~48% at reset', tone: 'muted' }, { at_reset_pct: 48.1 }, null, null, NOW);
+  assert.deepEqual([reset.short, reset.alert], ['~48% at reset', false]);
+  assert.equal(outlookModel({ text: 'Limit hit', tone: 'danger' }, { text: 'limit hit' }, null, null, NOW).short, 'limit hit');
+  assert.equal(outlookModel({ text: 'Not rising', tone: 'muted' }, { text: 'not rising' }, null, null, NOW).short, 'not rising');
+  assert.equal(outlookModel({ text: 'X', tone: 'muted' }, null, null, null, NOW).short, 'X');
+  const base = new Date(2026, 8, 25, 10, 0).getTime() / 1000;
+  assert.equal(shortWhen(base + 3600 * 8, base), '6pm');
+  assert.equal(shortWhen(base + 3600 * 8 + 600, base), '6:10pm');
+  assert.equal(shortWhen(base + 86400, base), 'tmrw 10am');
+  assert.match(shortWhen(base + 3 * 86400, base), /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) 10am$/);
+  assert.match(shortWhen(base + 20 * 86400, base), /^[A-Z][a-z]{2} \d+$/);
+  assert.equal(shortWhen(base, undefined), '10am');
+});

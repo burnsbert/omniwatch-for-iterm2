@@ -3,7 +3,7 @@
 // countdowns are recomputed from `resets_at` against the passed-in `now`
 // so they tick client-side; the server's `reset_text` is only a fallback.
 
-import { ageStr, formatEpochResetTime } from './format.js';
+import { ageStr, formatEpochResetTime, formatAbsTime } from './format.js';
 
 export const PROVIDERS = Object.freeze([
   { id: 'claude', name: 'Claude', longName: 'Claude Code' },
@@ -58,8 +58,10 @@ export function limitModel(limit, { now, showDollars }) {
     if (limit.limit_display) dollars = { shown: true, text: limit.limit_display };
     else if (!showDollars) dollars = { shown: false, text: '$ hidden · press $' };
   }
+  const burn = burnModel(limit.burn);
   return {
-    burn: burnModel(limit.burn),
+    burn,
+    outlook: outlookModel(burn, limit.burn, warning, proj, now),
     id: limit.id,
     label: limit.label || limit.id,
     window: limit.window || '',
@@ -88,6 +90,45 @@ export function burnModel(burn) {
   else if (typeof burn.at_reset_pct === 'number' && burn.at_reset_pct >= 80) tone = 'warn';
   const rate = typeof burn.rate_per_hour === 'number' && burn.rate_per_hour > 0 ? `+${formatRate(burn.rate_per_hour)}%/h` : '';
   return { text: capitalize(burn.text), tone, rate, eta: burn.eta || null, beforeReset: !!burn.before_reset };
+}
+
+/**
+ * One projection per limit (T018): the burn rate when the backend has one,
+ * else the legacy on-pace projection. `text` is the full sentence (cards,
+ * tooltips); `short` is the strip's compact form; `alert` is false for
+ * reassuring outlooks ("~48% at reset", "not rising") the strip can skip.
+ */
+export function outlookModel(burn, rawBurn, warning, proj, now) {
+  if (burn) {
+    const b = rawBurn || {};
+    let short = burn.text;
+    if (b.text === 'limit hit') short = 'limit hit';
+    else if (b.before_reset && b.eta) short = `100% ${shortWhen(b.eta, now)}`;
+    else if (typeof b.at_reset_pct === 'number') short = `~${Math.round(b.at_reset_pct)}% at reset`;
+    else if (b.text === 'not rising') short = 'not rising';
+    return { source: 'burn', text: burn.text, short, tone: burn.tone, alert: burn.tone !== 'muted' };
+  }
+  if (warning) {
+    let short = warning.kind === 'hit' ? 'limit hit' : warning.text;
+    if (warning.kind === 'pace' && proj && proj.at) short = `hits limit ${shortWhen(proj.at, now)}`;
+    return { source: 'projection', text: warning.text, short, tone: warning.tone, alert: true };
+  }
+  return null;
+}
+
+const DAYS = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
+
+/** "6:10pm" today, "tmrw 8am", "Tue 2:23pm", "Oct 1" — for the crowded strip. */
+export function shortWhen(epoch, now) {
+  const full = formatAbsTime(new Date(epoch * 1000), new Date((now || epoch) * 1000));
+  const m = /^(.*) at (\d+:\d+[ap]m)$/.exec(full);
+  if (!m) return full;
+  const [, day, time] = m;
+  const t = time.replace(':00', '');
+  if (day === 'Today') return t;
+  if (day === 'Tomorrow') return `tmrw ${t}`;
+  if (DAYS[day]) return `${DAYS[day]} ${t}`;
+  return day;
 }
 
 function formatRate(r) {

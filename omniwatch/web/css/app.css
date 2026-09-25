@@ -142,6 +142,7 @@ mark { background: none; color: var(--ow-accent); font-weight: 650; }
   animation: ow-beacon 2.4s ease-out infinite;
 }
 .ow-summary {
+  min-width: 0;
   color: var(--ow-text-muted);
   font-size: 12.5px;
   white-space: nowrap;
@@ -755,16 +756,16 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
   padding: 3px 6px; border: 0; border-radius: 6px; background: transparent; text-align: left;
 }
 .ow-strip-body:hover { background: var(--ow-hover); }
-.ow-strip-line { display: flex; align-items: center; flex-wrap: wrap; column-gap: 16px; row-gap: 3px; min-height: 22px; font-size: 12px; }
+.ow-strip-line { display: flex; align-items: center; flex-wrap: wrap; column-gap: 12px; row-gap: 3px; min-height: 22px; font-size: 12px; }
 .ow-strip-provider { width: 52px; font-weight: 700; font-size: 11.5px; }
 .ow-strip-provider[data-agent="claude"] { color: var(--ow-claude); }
 .ow-strip-provider[data-agent="codex"] { color: var(--ow-codex); }
-.ow-strip-limit { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ow-strip-limit { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .ow-strip-lbl { color: var(--ow-text-muted); }
 .ow-strip-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
 .ow-strip-reset { color: var(--ow-text-muted); font-variant-numeric: tabular-nums; }
 .ow-strip-dollars { color: var(--ow-text-muted); font-size: 11px; }
-.ow-strip-warn { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
+.ow-strip-warn { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; font-size: 11.5px; margin-left: -4px; }
 .ow-strip-msg { color: var(--ow-text-muted); font-style: italic; }
 .ow-strip-sum { display: inline-flex; align-items: center; gap: 7px; }
 .ow-strip-empty { display: inline-flex; align-items: center; gap: 7px; color: var(--ow-text-muted); font-size: 12px; min-height: 22px; }
@@ -924,6 +925,7 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
   outline: none;
   animation: ow-pop-in .16s cubic-bezier(.2, .8, .2, 1);
 }
+.ow-modal-wrap.is-leaving { pointer-events: none; }
 .ow-modal-wrap.is-leaving .ow-dialog { animation: ow-pop-out .12s ease-in forwards; }
 .ow-modal-wrap.is-leaving .ow-backdrop { animation: ow-fade-out .12s ease-in forwards; }
 .ow-dialog-palette { width: min(640px, 100%); }
@@ -1123,7 +1125,8 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
 [data-layout="compact"] .ow-pv-actions .ow-btn-label,
 [data-layout="compact"] .ow-pv-actions kbd,
 [data-layout="compact"] .ow-reply-opt-kbd,
-[data-layout="compact"] .ow-pv-addlabel { display: none; }
+[data-layout="compact"] .ow-pv-addlabel,
+[data-layout="compact"] .ow-preview-drawer .ow-pv-label .ow-pill { display: none; }
 [data-layout="compact"] .ow-reply-opt-label { max-width: 220px; }
 [data-layout="compact"] .ow-strip > .ow-icon-btn,
 [data-layout="compact"] .ow-strip-reset,
@@ -1197,7 +1200,7 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
 
 /* ---- blocked-on-you chip ---- */
 .ow-stats-chip {
-  display: inline-flex; align-items: center; gap: 7px; flex: 0 1 auto; min-width: 0;
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; min-width: 0;
   height: 28px; padding: 0 11px 0 8px; border-radius: 999px;
   border: 1px solid var(--ow-border);
   background: linear-gradient(135deg, var(--ow-claude-bg), var(--ow-attention-bg));

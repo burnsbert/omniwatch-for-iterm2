@@ -71,6 +71,7 @@ function setup({ width = 1400, native = false, server: serverPatch = {}, ui: uiP
     local,
     get server() { return server; },
     get ui() { return ui; },
+    serverDispatch: (e) => { server = reduce(server, e); },
     toasts: () => ui.toasts.map((t) => t.message),
     advance: (ms) => { nowMs += ms; },
     runTimers: () => { for (const t of timers.splice(0)) if (t.fn) t.fn(); },
@@ -710,4 +711,42 @@ test('v1 native settings go to the app shell only, never PATCHed (SHELL_CONTRACT
   const br = setup();
   br.ctl.run('nativeSettings.launchAtLogin', { value: true });
   assert.deepEqual(br.nativeCalls, [], 'browser mode: no-op');
+});
+
+test('rapid pref changes: a late echo of an earlier PATCH does not undo a newer value (s s s)', async () => {
+  const resolvers = [];
+  const t = setup({ apiOverrides: { patchPrefs: (p) => new Promise((res) => resolvers.push(() => res({ ...fixture.prefs, ...p }))) } });
+  t.ctl.run('sort.cycle'); // → attention (in flight)
+  t.ctl.run('sort.cycle'); // → agents (in flight)
+  assert.equal(t.server.prefs.sort, 'agents');
+  // The server's SSE echo of the first PATCH (sort: attention) lands before the second resolves:
+  // the store applies it, then the controller sees the event.
+  const srv = t.server;
+  const echo = { type: 'prefs', data: { seq: srv.seq, prefs: { ...srv.prefs, sort: 'attention' }, projects: srv.projects } };
+  t.serverDispatch(echo);
+  t.ctl.onServerEvent(echo);
+  assert.equal(t.server.prefs.sort, 'agents', 'pending value re-applied over the stale echo');
+  resolvers[0]();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(t.server.prefs.sort, 'agents', 'the newer optimistic value survives the older response');
+  t.ctl.run('sort.cycle');
+  assert.equal(t.server.prefs.sort, 'activity');
+  resolvers[1]();
+  resolvers[2]();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(t.server.prefs.sort, 'activity');
+  assert.deepEqual(t.toasts().filter((m) => m.startsWith('sort:')), ['sort: attention', 'sort: agents', 'sort: activity']);
+});
+
+test('re-applying pending prefs does not loop when the store already has them', () => {
+  const t = setup({ apiOverrides: { patchPrefs: () => new Promise(() => {}) } });
+  t.ctl.run('sort.cycle');
+  let n = 0;
+  const srv = t.server;
+  for (let i = 0; i < 3; i += 1) {
+    t.ctl.onServerEvent({ type: 'prefs', data: { seq: srv.seq, prefs: t.server.prefs, projects: srv.projects } });
+    n += 1;
+  }
+  assert.equal(n, 3);
+  assert.equal(t.server.prefs.sort, 'attention');
 });

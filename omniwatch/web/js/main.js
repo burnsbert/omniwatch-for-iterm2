@@ -454,6 +454,16 @@ function focusRegion(dir) {
   }
 }
 
+/**
+ * Run a command that came from the keyboard. The id is mirrored on
+ * <html data-ow-key-command> so the E2E keymap-parity test (web-tests/e2e)
+ * can check every binding without guessing its side effects.
+ */
+function runKey(id) {
+  document.documentElement.dataset.owKeyCommand = id;
+  return ctl.run(id);
+}
+
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.defaultPrevented) return;
   const u = uiStore.getState();
@@ -472,17 +482,17 @@ document.addEventListener('keydown', (e) => {
   if (u.modal) {
     if (e.key === 'Escape') {
       e.preventDefault();
-      ctl.run('unwind');
+      runKey('unwind');
       return;
     }
     const id = matchCommand(ev, { inTextField: true });
     if (id === 'commandPalette.open') {
       e.preventDefault();
       if (u.modal.type === 'palette') ui.dispatch({ type: 'closeModal' });
-      else ctl.run(id);
+      else runKey(id);
     } else if (id === 'settings.open' && u.modal.type !== 'settings') {
       e.preventDefault();
-      ctl.run(id);
+      runKey(id);
     } else if (u.modal.type === 'help' && !inText && (e.key === '?' || (e.key === '/' && e.metaKey))) {
       e.preventDefault();
       ui.dispatch({ type: 'closeModal' });
@@ -495,12 +505,12 @@ document.addEventListener('keydown', (e) => {
     if (action === 'ignore') return;
     if (action === 'move-up' || action === 'move-down') {
       e.preventDefault();
-      ctl.run(action === 'move-up' ? 'move.up' : 'move.down');
+      runKey(action === 'move-up' ? 'move.up' : 'move.down');
       return;
     }
     if (action === 'goto') {
       e.preventDefault();
-      ctl.run('session.goto');
+      runKey('session.goto');
       return;
     }
     if (action === 'exit') {
@@ -515,8 +525,8 @@ document.addEventListener('keydown', (e) => {
     if (action === 'ignore') return;
     if (action !== 'passthrough') {
       e.preventDefault();
-      if (action === 'dollars') ctl.run('dollars.toggle');
-      else if (action === 'refresh') ctl.run('refresh');
+      if (action === 'dollars') runKey('dollars.toggle');
+      else if (action === 'refresh') runKey('refresh');
       else ui.dispatch({ type: 'closeOverlay' });
       return;
     }
@@ -533,7 +543,7 @@ document.addEventListener('keydown', (e) => {
     t.blur();
   }
   e.preventDefault();
-  ctl.run(id);
+  runKey(id);
 });
 
 // ---------------------------------------------------------------- divider
@@ -580,6 +590,11 @@ function wireDivider(div) {
 let audio = null;
 function playChime() {
   // WebAudio chime (P-33, browser mode only; the app uses NSSound).
+  // Silent under browser automation (headless tests still reach the speakers).
+  if (typeof navigator !== 'undefined' && navigator.webdriver) {
+    window.__owChimes = (window.__owChimes || 0) + 1;
+    return;
+  }
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;

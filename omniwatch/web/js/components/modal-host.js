@@ -35,6 +35,8 @@ export function createModalHost(ctx, root, factories) {
   function open(modal) {
     const factory = factories[modal.type];
     if (!factory) return;
+    // A modal that's still animating out must not linger under the new one.
+    for (const old of root.querySelectorAll('.ow-modal-wrap.is-leaving')) old.remove();
     const restore = document.activeElement;
     const comp = factory(ctx);
     const dialog = h('div', {
@@ -47,23 +49,18 @@ export function createModalHost(ctx, root, factories) {
       e.preventDefault();
       if (comp.dismissable !== false) ctx.ui.dispatch({ type: 'closeModal' });
     });
+    // Focus trap (§2.7). Tab is handled here for every step, not just at the
+    // ends: WebKit's default Tab skips buttons ("Tab to all controls" off), so
+    // the browser's own order would leave the dialog.
     dialog.addEventListener('keydown', (e) => {
       if (e.key !== 'Tab') return;
-      const items = focusables(dialog);
-      if (!items.length) {
-        e.preventDefault();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      e.preventDefault();
       e.stopPropagation();
+      const items = focusables(dialog);
+      if (!items.length) return;
+      const i = items.indexOf(document.activeElement);
+      const next = e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : (i < 0 || i === items.length - 1 ? 0 : i + 1);
+      items[next].focus();
     });
     root.appendChild(wrap);
     active = { type: modal.type, comp, wrap, restore, dialog, key: modal };

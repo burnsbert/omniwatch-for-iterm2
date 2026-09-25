@@ -65,20 +65,40 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
 
   // ---- prefs -------------------------------------------------------------
 
-  /** Optimistic PATCH /prefs: apply locally, then let the server echo win. */
+  // In-flight pref values: key -> {value, id}. A `prefs` echo of an *earlier*
+  // PATCH must not undo a newer optimistic value (fast `s s s` presses), so
+  // pending values are re-applied over server prefs until their own PATCH settles.
+  const pendingPrefs = new Map();
+  let patchSeq = 0;
+  const pendingValues = () => Object.fromEntries([...pendingPrefs].map(([k, v]) => [k, v.value]));
+
+  function applyPrefs(prefsObj) {
+    const srv = getServer();
+    dispatchServer({ type: 'prefs', data: { seq: srv.seq, prefs: { ...prefsObj, ...pendingValues() }, projects: srv.projects } });
+  }
+
+  /** Optimistic PATCH /prefs: apply locally, then let the server response win. */
   async function patchPrefs(patch) {
+    const id = ++patchSeq;
     const server = getServer();
-    const merged = { ...(server.prefs || {}), ...patch };
-    dispatchServer({ type: 'prefs', data: { seq: server.seq, prefs: merged, projects: server.projects } });
+    const before = { ...(server.prefs || {}) };
+    for (const [k, v] of Object.entries(patch)) pendingPrefs.set(k, { value: v, id });
+    applyPrefs({ ...before, ...patch });
+    const settle = () => {
+      for (const k of Object.keys(patch)) if (pendingPrefs.get(k) && pendingPrefs.get(k).id === id) pendingPrefs.delete(k);
+    };
     try {
       const res = await api.patchPrefs(patch);
+      settle();
       const full = res && (res.prefs || (res.view !== undefined ? res : null));
-      if (full) {
-        const s = getServer();
-        dispatchServer({ type: 'prefs', data: { seq: s.seq, prefs: { ...s.prefs, ...full }, projects: s.projects } });
-      }
+      applyPrefs({ ...getServer().prefs, ...(full || {}) });
       return true;
     } catch (err) {
+      settle();
+      // Put back what the server still has (the optimistic value was refused).
+      const reverted = { ...(getServer().prefs || {}) };
+      for (const k of Object.keys(patch)) if (!pendingPrefs.has(k) && k in before) reverted[k] = before[k];
+      applyPrefs(reverted);
       fail('settings', err);
       return false;
     }
@@ -707,6 +727,12 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
       }
     } else if (event.type === 'toast') {
       if (data.message) serverToast(data);
+    } else if ((event.type === 'prefs' || event.type === 'state') && pendingPrefs.size) {
+      // Re-apply only if the echo actually clobbered a pending value (this
+      // dispatch is itself a `prefs` event, so the check also ends the loop).
+      const cur = getServer().prefs || {};
+      const stale = [...pendingPrefs].some(([k, v]) => JSON.stringify(cur[k]) !== JSON.stringify(v.value));
+      if (stale) applyPrefs(cur);
     }
   }
 

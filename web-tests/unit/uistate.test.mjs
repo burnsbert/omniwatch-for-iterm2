@@ -2,6 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { reduceUi, initialUi, unwindAction, keymapActive, UI_ACTIONS, TOAST_MS, FLASH_MS, MAX_TOASTS } from '../../omniwatch/web/js/uistate.js';
 
+test('P-76 timing constants match Ultrawatch config.py (toast 5 s, flash 1.5 s)', () => {
+  assert.equal(TOAST_MS, 5000);
+  assert.equal(FLASH_MS, 1500);
+});
+
 const r = (ui, a) => reduceUi(ui, a);
 
 test('unknown / malformed actions are no-ops', () => {
@@ -63,7 +68,7 @@ test('filter, label and project editing', () => {
   assert.equal(r(ui, { type: 'focusProject', slot: null }).projectFocus, null);
 });
 
-test('toasts: 5 s lifetime, capped, hover pauses and resumes (P-52)', () => {
+test('toasts: 5 s lifetime, capped, hover pauses and resumes (P-52; P-76 toast 5 s)', () => {
   let ui = initialUi;
   for (let i = 0; i < MAX_TOASTS + 2; i += 1) ui = r(ui, { type: 'toast', level: 'info', message: `m${i}`, now: 1000 });
   assert.equal(ui.toasts.length, MAX_TOASTS);
@@ -87,7 +92,7 @@ test('toasts: 5 s lifetime, capped, hover pauses and resumes (P-52)', () => {
   assert.equal(r(short, { type: 'resumeToast', id: 1, now: 100 }).toasts[0].until, 1600, 'resume keeps at least 1.5 s');
 });
 
-test('flash lasts 1.5 s and tick expires it (P-31)', () => {
+test('flash lasts 1.5 s and tick expires it (P-31; P-76 flash 1.5 s)', () => {
   let ui = r(initialUi, { type: 'flash', uid: 'a', now: 100 });
   assert.equal(ui.flashes.a, 100 + FLASH_MS);
   assert.equal(r(ui, { type: 'tick', now: 200 }), ui, 'nothing expired → same object');

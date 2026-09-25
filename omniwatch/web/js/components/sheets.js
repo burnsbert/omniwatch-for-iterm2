@@ -311,11 +311,13 @@ function editorControl(ctx, prefs, patch) {
     if (ok === false) input.value = prefs().editor || '';
   };
   input.addEventListener('keydown', (e) => {
-    e.stopPropagation();
+    // Tab must bubble to the dialog's focus trap; only ⏎/Esc are handled here.
     if (e.key === 'Enter') {
       e.preventDefault();
+      e.stopPropagation();
       save();
     } else if (e.key === 'Escape') {
+      e.stopPropagation();
       input.value = prefs().editor || '';
       input.blur();
     }
