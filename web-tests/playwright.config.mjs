@@ -5,20 +5,18 @@
 // OW_ALLOW_HEADED=1, so a run never opens a window by accident.
 
 import { defineConfig } from '@playwright/test';
-import { executableFor } from './browsers.mjs';
-import { CHROMIUM_MUTE_ARGS } from './audio-mute.mjs';
+import { launchOptions } from './browsers.mjs';
 
 const wantsHeaded = process.argv.some((a) => a === '--headed' || a === '--ui' || a === '--debug') || !!process.env.PWDEBUG;
 if (wantsHeaded && process.env.OW_ALLOW_HEADED !== '1') {
   throw new Error('Omniwatch E2E runs headless only. Set OW_ALLOW_HEADED=1 to allow --headed/--ui/--debug.');
 }
 
+// Headless browsers still reach the speakers: launchOptions() adds
+// --mute-audio for Chromium; every context also gets the silent audio stub
+// (e2e/fixtures.mjs).
 const launch = (name) => {
-  const executablePath = executableFor(name);
-  const opts = executablePath ? { executablePath } : {};
-  // Headless browsers still reach the speakers: mute Chromium outright; every
-  // context also gets the silent AudioContext stub (e2e/fixtures.mjs).
-  if (name === 'chromium') opts.args = [...CHROMIUM_MUTE_ARGS];
+  const { headless, ...opts } = launchOptions(name); // eslint-disable-line no-unused-vars
   return opts;
 };
 

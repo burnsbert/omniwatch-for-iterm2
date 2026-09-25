@@ -24,7 +24,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 import { startMockServer } from './mock-server.mjs';
-import { CHROMIUM_MUTE_ARGS, muteContext } from './audio-mute.mjs';
+import { muteContext } from './audio-mute.mjs';
+import { launchOptions } from './browsers.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
@@ -125,7 +126,7 @@ const executablePath = executableFor(browserType);
 console.log(`engine ${engine} (${executablePath || 'playwright default'}); backend ${backendKind}`);
 // Headless browsers still play sound through the speakers: mute Chromium, and
 // stub WebAudio/<audio> in every context (audio-mute.mjs).
-const browser = await browserType.launch({ headless: true, executablePath, args: engine === 'chromium' ? [...CHROMIUM_MUTE_ARGS] : [] });
+const browser = await browserType.launch({ ...launchOptions(engine), executablePath });
 const srv = await startBackend();
 if (srv.ready) console.log(`ready line: ${JSON.stringify({ ...srv.ready, token: `<${srv.ready.token.length} chars>` })}`);
 

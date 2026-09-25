@@ -12,8 +12,11 @@ test('Chromium launches with --mute-audio in the E2E config, smoke and screensho
   const { default: config } = await import('../playwright.config.mjs');
   const chromium = config.projects.find((p) => p.name === 'chromium');
   assert.ok(chromium.use.launchOptions.args.includes('--mute-audio'));
-  assert.match(src('../smoke.mjs'), /args: engine === 'chromium' \? \[\.\.\.CHROMIUM_MUTE_ARGS\]/);
-  assert.equal((src('../../scripts/screenshots.mjs').match(/args: \[\.\.\.CHROMIUM_MUTE_ARGS\]/g) || []).length, 2);
+  const { launchOptions } = await import('../browsers.mjs');
+  assert.ok(launchOptions('chromium').args.includes('--mute-audio'), 'the browser finder mutes Chromium');
+  assert.equal(launchOptions('chromium').headless, true);
+  assert.match(src('../smoke.mjs'), /browserType\.launch\(\{ \.\.\.launchOptions\(engine\)/);
+  assert.equal((src('../../scripts/screenshots.mjs').match(/chromium\.launch\(launchOptions\('chromium'\)\)/g) || []).length, 2);
 });
 
 test('every context is muted: fixtures override `context`, smoke/screenshots call muteContext', () => {

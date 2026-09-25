@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, webkit } from 'playwright';
+import { CHROMIUM_MUTE_ARGS } from './audio-mute.mjs';
 
 function cached(prefix, candidates) {
   const cache = path.join(os.homedir(), 'Library', 'Caches', 'ms-playwright');
@@ -28,4 +29,17 @@ export function executableFor(name) {
   } catch (_) { /* fall back to the cache */ }
   if (name === 'webkit') return cached('webkit-', (d) => [path.join(d, 'pw_run.sh')]);
   return cached('chromium_headless_shell-', (d) => fs.readdirSync(d).map((s) => path.join(d, s, 'chrome-headless-shell')));
+}
+
+/**
+ * Launch options for a headless browser: the executable (if we need the
+ * cached build) and, for Chromium, --mute-audio — headless browsers still
+ * reach the Mac's speakers. Every harness launches through this.
+ */
+export function launchOptions(name) {
+  const executablePath = executableFor(name);
+  const opts = { headless: true };
+  if (executablePath) opts.executablePath = executablePath;
+  if (name !== 'webkit') opts.args = [...CHROMIUM_MUTE_ARGS];
+  return opts;
 }

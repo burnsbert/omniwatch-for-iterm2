@@ -61,7 +61,7 @@
     "project": 1,
     "muted": false,
     "is_dashboard": false,
-    "screen_hash": "8e85f529",
+    "screen_hash": "7b60203a",
     "prompt": {
      "question": "Do you want to proceed?",
      "options": [
@@ -477,8 +477,8 @@
   ],
   "screens": {
    "DEMO-0001": {
-    "hash": "8e85f529",
-    "text": "⏺ I've finished wiring up the new /healthz endpoint. Let me verify the\n  build still passes before handing this back to you.\n\n╭──────────────────────────────────────────────────────────────────────╮\n│ Bash command                                                          │\n│                                                                       │\n│   npm run build                                                       │\n│   Compile the TypeScript sources                                     │\n│                                                                       │\n│ Do you want to proceed?                                               │\n│ ❯ 1. Yes                                                              │\n│   2. Yes, and don't ask again for npm run commands                    │\n│   3. No, and tell Claude what to do differently (esc)                 │\n╰──────────────────────────────────────────────────────────────────────╯"
+    "hash": "7b60203a",
+    "text": "⏺ I've finished wiring up the new /healthz endpoint. Let me verify the\n  build still passes before handing this back to you.\n\n╭──────────────────────────────────────────────────────────────────────╮\n│ Bash command                                                         │\n│                                                                      │\n│   npm run build                                                      │\n│   Compile the TypeScript sources                                     │\n│                                                                      │\n│ Do you want to proceed?                                              │\n│ ❯ 1. Yes                                                             │\n│   2. Yes, and don't ask again for npm run commands                   │\n│   3. No, and tell Claude what to do differently (esc)                │\n╰──────────────────────────────────────────────────────────────────────╯"
    },
    "DEMO-0002": {
     "hash": "6575653e",
