@@ -100,6 +100,10 @@ public final class BackendSupervisor {
         case .requested:
             status = .stopped
             return
+        case .refused(let why):
+            log("backend refused to start: \(why)")
+            status = .failed(why)   // the error view's Retry spawns again
+            return
         case .crashed(let s): reason = "backend exited unexpectedly (status \(s))"
         case .handshakeFailed(let r): reason = "backend handshake failed: \(r)"
         }

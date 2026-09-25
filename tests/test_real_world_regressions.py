@@ -244,5 +244,223 @@ class TestInstallWithoutDeveloperTools(TripwireTestCase):
         self.assertTrue(vout.decode().startswith('omniwatch '), vout)
 
 
+
+# ---------------------------------------------------------------------
+# T024: closing the risks left open by T022
+# ---------------------------------------------------------------------
+
+class TestSingleLineReply(TripwireTestCase):
+    """iTerm2's `write text` types the string raw (no bracketed paste) and
+    `newline YES` appends a CR, so an embedded newline reached the agent as
+    a keypress that could submit a reply partway through."""
+
+    def setUp(self):
+        super().setUp()
+        self.h = Harness(self.tmp_config_dir)
+        self.h.poll()
+        self.hash = self.h.session(fp.UID_WAIT)['screen_hash']
+
+    def reply(self, text, submit=True):
+        return self.h.engine.reply(fp.UID_WAIT, {'text': text, 'submit': submit,
+                                                 'expect_hash': self.hash})
+
+    def test_newlines_rejected(self):
+        from omniwatch.engine import ApiError
+        for text in ('fix it\nplease', 'line\n', '\n', 'a\r\nb', 'a\rb'):
+            for submit in (True, False):
+                with self.assertRaises(ApiError) as cm:
+                    self.reply(text, submit)
+                self.assertEqual((cm.exception.status, cm.exception.code),
+                                 (422, 'multiline_reply'), repr(text))
+        self.assertEqual(self.h.pollers['iterm'].requests, [])
+
+    def test_single_line_still_sent(self):
+        self.assertTrue(self.reply('fix it please')['ok'])
+        self.assertEqual(self.h.pollers['iterm'].requests,
+                         [('reply', fp.UID_WAIT, 'fix it please', True)])
+
+
+class TestLiveLabelsNeverCollected(TripwireTestCase):
+    """touch_labels() refreshed last_seen only in memory and the 14-day GC
+    ran at load, before the live sessions were known: a label on a session
+    that was still open got deleted after 14 days (or whenever Omniwatch
+    hadn't run for 14 days)."""
+
+    def write_state(self, labels):
+        with open(os.path.join(self.tmp_config_dir, 'state.json'), 'w') as f:
+            json.dump({'labels': labels}, f)
+
+    def test_old_label_on_live_session_survives_restart(self):
+        now = fp.FakeClock().time()
+        month_ago = int(now - 30 * 86400)
+        self.write_state({fp.UID_WAIT: {'label': 'keep me', 'last_seen': month_ago},
+                          'GONE-UID': {'label': 'gone', 'last_seen': month_ago},
+                          'GONE-RECENT': {'label': 'recent', 'last_seen': int(now - 3600)}})
+        h = Harness(self.tmp_config_dir)
+        h.poll()
+        self.assertEqual(h.session(fp.UID_WAIT)['label'], 'keep me')
+        self.assertEqual(h.store.label('GONE-UID'), '')          # dead and old: collected
+        self.assertEqual(h.store.label('GONE-RECENT'), 'recent')  # dead but recent: kept
+        h.store.save()
+        with open(os.path.join(self.tmp_config_dir, 'state.json')) as f:
+            saved = json.load(f)['labels']
+        self.assertEqual(saved[fp.UID_WAIT]['last_seen'], int(now))  # refreshed on disk
+        self.assertNotIn('GONE-UID', saved)
+
+    def test_touch_is_persisted_hourly_not_every_poll(self):
+        h = Harness(self.tmp_config_dir)
+        h.poll()
+        start = h.p.clock.time()
+        h.store.set_label(fp.UID_WAIT, 'x', now=start)
+        h.store.save()
+        path = os.path.join(self.tmp_config_dir, 'state.json')
+
+        def on_disk():
+            with open(path) as f:
+                return json.load(f)['labels'][fp.UID_WAIT]['last_seen']
+        h.p.clock.advance(60)
+        h.poll()                       # the engine's housekeeping saves when dirty
+        self.assertIsNone(h.store._dirty_at)
+        self.assertEqual(on_disk(), int(start))     # not rewritten every poll
+        h.p.clock.advance(persist.LABEL_TOUCH_SECONDS)
+        h.poll()
+        h.store.maybe_save()
+        self.assertEqual(on_disk(), int(h.p.clock.time()))
+
+
+class TestSecondInstance(TripwireTestCase):
+    """A second `serve` on the same config dir overwrote runtime.json and
+    deleted it on exit, leaving the first backend undiscoverable (plugin
+    "off", `omniwatch --browser` starting a third)."""
+
+    def start_first(self):
+        from test_cli import FACTORY, CliTestCase
+        runner = CliTestCase('run')
+        runner.assertTrue = self.assertTrue
+        t, sink, err, result, _ = CliTestCase.run_serve_thread(
+            runner, ['--ready-json', '--providers-factory', FACTORY])
+        ready = json.loads(sink.getvalue())
+        self.addCleanup(self._shutdown, ready, t)
+        return ready
+
+    def _shutdown(self, ready, thread):
+        from test_cli import http_json
+        try:
+            http_json(ready['port'], ready['token'], 'POST', '/api/v1/shutdown')
+        except OSError:
+            pass
+        thread.join(5)
+
+    def serve(self, argv, **patches):
+        import io
+        import threading
+        from unittest import mock
+        from omniwatch import cli
+        from test_cli import LineSink
+        opts = cli.serve_parser().parse_args(argv)
+        out, err, result = LineSink(), io.StringIO(), {}
+
+        def target():
+            result['code'] = cli.serve(opts, stdout=out, stderr=err, install_signals=False,
+                                       watch_stdin_fd=None, redirect_fd2=False)
+        from omniwatch import config
+        # --browser defaults the log to ~/Library/Logs/Omniwatch: keep it in the sandbox.
+        log_path = os.path.join(self.tmp_config_dir, 'logs', 'backend.log')
+        with mock.patch.object(cli, 'open_browser', patches.get('open_browser', lambda url: None)), \
+                mock.patch.object(config, 'BACKEND_LOG_PATH', log_path):
+            t = threading.Thread(target=target, daemon=True)
+            t.start()
+            t.join(10)
+        if t.is_alive():   # it started a second backend: stop it, then fail
+            line = json.loads(out.getvalue().splitlines()[0])
+            self._shutdown(line, t)
+            self.fail('a second backend started on the same config dir')
+        return result['code'], out.getvalue(), err.getvalue()
+
+    def test_ready_json_second_instance_refuses(self):
+        from omniwatch import cli, runtime
+        from test_cli import FACTORY
+        first = self.start_first()
+        code, out, err = self.serve(['--ready-json', '--providers-factory', FACTORY])
+        self.assertEqual(code, cli.ALREADY_RUNNING_EXIT)
+        lines = out.splitlines()
+        self.assertEqual(len(lines), 1, out)
+        line = json.loads(lines[0])
+        self.assertEqual((line['event'], line['code'], line['pid'], line['port']),
+                         ('error', 'already_running', first['pid'], first['port']))
+        self.assertNotIn('token', line)
+        self.assertIn('already running', line['message'])
+        self.assertIn('already running', err)
+        info = runtime.read(os.path.join(self.tmp_config_dir, 'runtime.json'))
+        self.assertEqual(info['token'], first['token'])            # untouched
+        self.assertTrue(cli.backend_healthy(info))
+
+    def test_browser_second_instance_reuses(self):
+        from test_cli import FACTORY
+        first = self.start_first()
+        opened = []
+        code, out, _ = self.serve(['--browser', '--providers-factory', FACTORY],
+                                  open_browser=opened.append)
+        self.assertEqual(code, 0)
+        self.assertEqual(opened, ['http://127.0.0.1:%d/auth?token=%s'
+                                  % (first['port'], first['token'])])
+        self.assertIn('already running', out)
+
+    def test_stale_runtime_json_does_not_block(self):
+        from omniwatch import runtime
+        from test_cli import FACTORY
+        with REAL_POPEN(['/usr/bin/true']) as proc:
+            proc.wait()
+        runtime.write(os.path.join(self.tmp_config_dir, 'runtime.json'),
+                      {'port': 1, 'token': 't', 'pid': proc.pid})
+        ready = self.start_first()
+        self.assertEqual(ready['event'], 'ready')
+
+
+class TestUninstallPurgeHonorsXdg(TripwireTestCase):
+    """`uninstall.sh --purge` removed $HOME/.config/omniwatch even when
+    XDG_CONFIG_HOME pointed the backend elsewhere, and followed
+    $OMNIWATCH_CONFIG_DIR even under --prefix (make check-install)."""
+
+    def run_uninstall(self, env, *args):
+        with REAL_POPEN(['/bin/bash', os.path.join(REPO, 'uninstall.sh'), '--purge'] + list(args),
+                        env=env, stdout=-1, stderr=-2) as proc:
+            out, _ = proc.communicate(timeout=30)
+        self.assertEqual(proc.returncode, 0, out)
+        return out.decode()
+
+    def setUp(self):
+        super().setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.home = os.path.join(self.tmp, 'home')
+        self.xdg = os.path.join(self.tmp, 'xdg')
+        for d in (os.path.join(self.home, '.config', 'omniwatch'),
+                  os.path.join(self.xdg, 'omniwatch'),
+                  os.path.join(self.tmp, 'other')):
+            os.makedirs(d)
+        self.env = {k: v for k, v in os.environ.items() if k != 'OMNIWATCH_CONFIG_DIR'}
+        self.env.update(HOME=self.home, XDG_CONFIG_HOME=self.xdg)
+
+    def test_purge_uses_xdg_config_home(self):
+        self.run_uninstall(self.env)
+        self.assertFalse(os.path.exists(os.path.join(self.xdg, 'omniwatch')))
+        self.assertTrue(os.path.exists(os.path.join(self.home, '.config', 'omniwatch')))
+
+    def test_empty_xdg_means_home_config(self):
+        self.run_uninstall(dict(self.env, XDG_CONFIG_HOME=''))
+        self.assertFalse(os.path.exists(os.path.join(self.home, '.config', 'omniwatch')))
+        self.assertTrue(os.path.exists(os.path.join(self.xdg, 'omniwatch')))
+
+    def test_prefix_ignores_env_overrides(self):
+        prefix = os.path.join(self.tmp, 'prefix')
+        os.makedirs(os.path.join(prefix, '.config', 'omniwatch'))
+        env = dict(self.env, OMNIWATCH_CONFIG_DIR=os.path.join(self.tmp, 'other'))
+        self.run_uninstall(env, '--prefix', prefix)
+        self.assertFalse(os.path.exists(os.path.join(prefix, '.config', 'omniwatch')))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, 'other')))
+        self.assertTrue(os.path.exists(os.path.join(self.xdg, 'omniwatch')))
+
+
 if __name__ == '__main__':
     unittest.main()

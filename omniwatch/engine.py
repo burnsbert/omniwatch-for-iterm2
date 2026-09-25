@@ -563,7 +563,8 @@ class Engine:
         self._drop_sessions(self._live - live, now)
         self._live = live
         self.paths = {u: p for u, p in self.paths.items() if u in live}
-        self.store.touch_labels([u for u in live if self.store.label(u)])
+        self.store.touch_labels([u for u in live if self.store.label(u)], now)
+        self.store.gc_labels(live, now)
         # TTYs with no shell-integration path (P-07). Deliberately not
         # counting the lsof fallback itself as "has a path": otherwise the
         # TTY leaves the request set once filled and its path flip-flops.
@@ -1034,7 +1035,15 @@ class Engine:
             raise _bad('expect_hash is required')
         if not text:
             raise _invalid('text is empty')
-        clean_text(text, 'text', REPLY_MAX_CHARS, allow_newline=True)
+        # iTerm2's `write text` types the string raw into the pty (no
+        # bracketed paste) and `newline YES` appends a CR. An embedded
+        # "\n"/"\r" would reach the agent as a keypress that can submit
+        # partway through, so replies are single-line; `submit` is the
+        # only way to press Enter, exactly once, after the text.
+        if '\n' in text or '\r' in text:
+            raise ApiError(422, 'multiline_reply',
+                           'text must be a single line; use submit:true to press Enter after it')
+        clean_text(text, 'text', REPLY_MAX_CHARS)
         s = self._require_session(uid)
         if not self.store.get('quick_reply'):
             raise _invalid('quick reply is turned off in Settings')

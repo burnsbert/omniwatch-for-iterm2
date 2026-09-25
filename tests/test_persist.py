@@ -68,15 +68,20 @@ class TestStateStore(TripwireTestCase):
         st = self.store(now=old)
         st.set_label('UID-OLD', 'stale', now=old)
         st.set_label('UID-NEW', 'fresh', now=old)
+        st.set_label('UID-RECENT', 'recent', now=old)
         st.save()
-        # 20 days later, only the touched label survives
         later = old + 20 * 86400
         raw = json.load(open(self.path))
-        raw['labels']['UID-NEW']['last_seen'] = int(later - 100)
+        raw['labels']['UID-RECENT']['last_seen'] = int(later - 100)
         json.dump(raw, open(self.path, 'w'))
+        # Loading never collects by age (Omniwatch may simply not have been
+        # running); gc_labels() does, once the live sessions are known.
         st2 = self.store(now=later)
-        self.assertEqual(st2.label('UID-OLD'), '')
-        self.assertEqual(st2.label('UID-NEW'), 'fresh')
+        self.assertEqual(st2.label('UID-OLD'), 'stale')
+        self.assertEqual(st2.gc_labels({'UID-NEW'}, now=later), 1)
+        self.assertEqual(st2.label('UID-OLD'), '')             # gone and old
+        self.assertEqual(st2.label('UID-NEW'), 'fresh')        # old but live
+        self.assertEqual(st2.label('UID-RECENT'), 'recent')    # gone but recent
 
     def test_corrupt_file_falls_back_to_defaults(self):
         with open(self.path, 'w') as f:

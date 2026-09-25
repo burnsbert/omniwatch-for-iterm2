@@ -57,6 +57,10 @@ PROJECT_SLOTS = 5
 
 SAVE_DEBOUNCE = 2.0
 
+# touch_labels() persists a live session's last_seen at most this often,
+# so a label stays fresh on disk without rewriting state.json every poll.
+LABEL_TOUCH_SECONDS = 3600
+
 # Fields imported once from a pre-existing Ultrawatch state.json (P-75).
 _MIGRATE_KEYS = ('labels', 'projects', 'projects_open', 'view', 'sort',
                  'show_dollars', 'split_ratio')
@@ -101,7 +105,7 @@ class StateStore:
                     self.state[key] = value
                 self.state['migrated_from_ultrawatch'] = int(now)
                 self._dirty_at = now
-        self._gc_labels(now)
+        self._clean_labels()
         self._normalize_muted()
         self._normalize_projects()
 
@@ -113,8 +117,10 @@ class StateStore:
         except Exception:
             return None
 
-    def _gc_labels(self, now):
-        cutoff = now - config.LABEL_GC_DAYS * 86400
+    def _clean_labels(self):
+        """Drop malformed label entries. Age-based collection waits for
+        gc_labels(), once the live sessions are known: at load time a label
+        can look old only because Omniwatch wasn't running."""
         labels = self.state.get('labels')
         if not isinstance(labels, dict):
             self.state['labels'] = {}
@@ -127,8 +133,24 @@ class StateStore:
             if (not isinstance(entry, dict) or not entry.get('label') or
                     not isinstance(entry['label'], str) or
                     not isinstance(last_seen, (int, float)) or
-                    isinstance(last_seen, bool) or last_seen < cutoff):
+                    isinstance(last_seen, bool)):
                 del labels[uid]
+
+    def gc_labels(self, live_uids, now=None):
+        """Forget labels of sessions that are gone and haven't been seen
+        for LABEL_GC_DAYS. Labels of live sessions are never collected.
+        Returns how many were removed."""
+        now = now if now is not None else time.time()
+        cutoff = now - config.LABEL_GC_DAYS * 86400
+        live = set(live_uids)
+        labels = self.state['labels']
+        stale = [uid for uid, entry in labels.items()
+                 if uid not in live and entry['last_seen'] < cutoff]
+        for uid in stale:
+            del labels[uid]
+        if stale:
+            self._dirty_at = now
+        return len(stale)
 
     def _normalize_muted(self):
         muted = self.state.get('muted')
@@ -204,12 +226,14 @@ class StateStore:
         self._dirty_at = now if now is not None else time.time()
 
     def touch_labels(self, uids, now=None):
-        """Refresh last_seen for labeled sessions that are still alive."""
+        """Refresh last_seen for labeled sessions that are still alive,
+        and persist it (at most every LABEL_TOUCH_SECONDS per label)."""
         now = now if now is not None else time.time()
         for uid in uids:
             entry = self.state['labels'].get(uid)
-            if isinstance(entry, dict):
+            if isinstance(entry, dict) and now - entry['last_seen'] >= LABEL_TOUCH_SECONDS:
                 entry['last_seen'] = int(now)
+                self._dirty_at = now
 
     # ---- saving ----
 

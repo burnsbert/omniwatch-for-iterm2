@@ -73,6 +73,9 @@ public final class BackendProcess {
         case crashed(status: Int32)
         /// Never produced a valid ready line (bad line, early exit, or timeout).
         case handshakeFailed(String)
+        /// Printed an `error` event instead of the ready line (e.g. another backend already
+        /// owns the config dir). Restarting won't help, so the supervisor doesn't.
+        case refused(String)
     }
 
     public let launch: BackendLaunch
@@ -91,6 +94,7 @@ public final class BackendProcess {
     private var stdoutBuffer = Data()
     private var ready: ReadyLine?
     private var handshakeError: String?
+    private var refusal: String?
     private var stopRequested = false
     private var exited = false
     private var reported = false
@@ -150,6 +154,7 @@ public final class BackendProcess {
                     let cb = onReady
                     callbackQueue.async { cb?(r) }
                 } catch {
+                    if case ReadyLine.ParseError.backendError(_, let message) = error { refusal = message }
                     failHandshake("\(error)")
                 }
             } else {
@@ -182,6 +187,8 @@ public final class BackendProcess {
         let exit: Exit
         if stopRequested {
             exit = .requested(status: status)
+        } else if let why = refusal {
+            exit = .refused(why)
         } else if let err = handshakeError {
             exit = .handshakeFailed(err)
         } else if ready == nil {

@@ -633,7 +633,7 @@ class TestReply(EngineTestCase):
         r = self.h.engine.reply(fp.UID_WAIT, self.body())
         self.assertEqual(r['ok'], True)
         self.assertEqual(self.h.pollers['iterm'].requests, [('reply', fp.UID_WAIT, '1', False)])
-        self.h.engine.reply(fp.UID_WAIT, self.body(text='fix it\nplease', submit=True,
+        self.h.engine.reply(fp.UID_WAIT, self.body(text='fix it please', submit=True,
                                                    expect_hash=self.hash.upper()))
 
     def test_validation(self):

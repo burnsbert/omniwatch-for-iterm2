@@ -36,6 +36,7 @@ import time
 from omniwatch import __version__
 
 COMMANDS = ('serve', 'demo', 'doctor')
+ALREADY_RUNNING_EXIT = 3
 PARENT_CHECK_SECONDS = 2.0
 APP_PATHS = ('~/Applications/Omniwatch.app', '/Applications/Omniwatch.app')
 
@@ -185,6 +186,31 @@ def backend_healthy(info, timeout=1.0):
         return False
 
 
+def running_backend(opts):
+    """runtime.json of a live, healthy backend (pid alive and /health
+    answers) that uses the same config dir as `opts`, else None. A demo
+    without an explicit config dir gets a fresh temp dir, so it never
+    conflicts."""
+    from omniwatch import runtime
+    if opts.demo and not opts.config_dir and not os.environ.get('OMNIWATCH_CONFIG_DIR'):
+        return None
+    config_dir = resolve_config_dir(opts)[0]
+    info = runtime.read_live(os.path.join(config_dir, 'runtime.json'))
+    if info and backend_healthy(info):
+        return dict(info, config_dir=config_dir)
+    return None
+
+
+def open_existing(info, opts, stdout):
+    """Point the user at an already-running backend instead of starting
+    another one."""
+    url = auth_url(info['port'], info['token'])
+    stdout.write('Omniwatch is already running (pid %d): %s\n' % (info['pid'], url))
+    stdout.flush()
+    if not opts.no_open:
+        open_browser(url)
+
+
 def open_browser(url):
     import webbrowser
     webbrowser.open(url)
@@ -293,6 +319,26 @@ def serve(opts, stdout=None, stderr=None, install_signals=True, watch_stdin_fd=0
     stderr = stderr or sys.stderr
     if opts.providers_factory or opts.demo:
         os.environ['OMNIWATCH_DEMO'] = '1'
+
+    # One backend per config dir (they'd fight over state.json and
+    # runtime.json). Checked before logs.setup(), which would rotate the
+    # running backend's log file.
+    existing = running_backend(opts)
+    if existing is not None:
+        if opts.browser and not opts.ready_json:
+            open_existing(existing, opts, stdout)
+            return 0
+        message = ('another Omniwatch backend is already running for %s (pid %d, port %d); '
+                   'quit it first' % (existing['config_dir'], existing['pid'], existing['port']))
+        if opts.ready_json:
+            stdout.write(json.dumps({'event': 'error', 'code': 'already_running',
+                                     'message': message, 'pid': existing['pid'],
+                                     'port': existing['port']},
+                                    separators=(',', ':')) + '\n')
+            stdout.flush()
+        stderr.write('omniwatch: %s\n' % message)
+        stderr.flush()
+        return ALREADY_RUNNING_EXIT
 
     log_file = opts.log_file
     if not log_file and opts.browser and not opts.ready_json:
@@ -463,13 +509,8 @@ def main(argv=None, stdout=None, stderr=None, **serve_kwargs):
 def reuse_running(opts, stdout):
     """--browser with a healthy backend already running: open it instead
     of starting a second one (runtime.json, §4.5)."""
-    from omniwatch import runtime
-    config_dir = resolve_config_dir(opts)[0]
-    info = runtime.read_live(os.path.join(config_dir, 'runtime.json'))
-    if not info or not backend_healthy(info):
+    info = running_backend(opts)
+    if info is None:
         return False
-    url = auth_url(info['port'], info['token'])
-    stdout.write('Omniwatch is already running (pid %d): %s\n' % (info['pid'], url))
-    if not opts.no_open:
-        open_browser(url)
+    open_existing(info, opts, stdout)
     return True

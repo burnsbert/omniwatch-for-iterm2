@@ -15,7 +15,7 @@ Implements the slice of the DESIGN.md §4.3/§4.4/§4.5/§4.7 contract the shell
   PATCH /api/v1/prefs (200 + `prefs` event); POST /api/v1/shutdown (200, then exits)
 * exits when stdin hits EOF or the parent pid changes (checked every 2 s)
 
-Knobs (env): FAKE_BACKEND_MODE = normal | crash | crash-after-ready | garbage | silent |
+Knobs (env): FAKE_BACKEND_MODE = normal | crash | crash-after-ready | already-running | garbage | silent |
 stubborn (ignores /shutdown, SIGTERM and stdin EOF); FAKE_BACKEND_TRANSITION_AFTER = seconds
 after an SSE connect to emit a busy→waiting `transition`; FAKE_BACKEND_PING = heartbeat
 seconds (default 15); FAKE_BACKEND_RECORD = path to append one JSON line per request;
@@ -338,6 +338,14 @@ def main(argv):
     if MODE == "silent":
         time.sleep(3600)
         return 0
+    if MODE == "already-running":
+        # What `omniwatch serve --ready-json` prints when another backend
+        # already owns the config dir (then exits 3).
+        print(json.dumps({"event": "error", "code": "already_running",
+                          "message": "another Omniwatch backend is already running for /tmp/x "
+                                     "(pid 42, port 5000); quit it first",
+                          "pid": 42, "port": 5000}), flush=True)
+        return 3
     if MODE == "garbage":
         print("Traceback (most recent call last): not a ready line", flush=True)
         time.sleep(3600)

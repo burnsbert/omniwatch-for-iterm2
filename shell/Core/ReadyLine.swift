@@ -14,9 +14,13 @@ public struct ReadyLine: Equatable {
         case wrongEvent(String?)
         case missingField(String)
         case invalidField(String)
+        /// The backend printed `{"event":"error","code":…,"message":…}` instead of a ready
+        /// line: it refused to start (e.g. `already_running`) and will exit on its own.
+        case backendError(code: String, message: String)
 
         public var description: String {
             switch self {
+            case .backendError(_, let message): return message
             case .notJSON: return "ready line is not a JSON object"
             case .wrongEvent(let e): return "ready line has event \(e.map { "\"\($0)\"" } ?? "none"), expected \"ready\""
             case .missingField(let f): return "ready line is missing \"\(f)\""
@@ -40,6 +44,11 @@ public struct ReadyLine: Equatable {
         guard let data = trimmed.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw ParseError.notJSON
+        }
+        if obj["event"] as? String == "error" {
+            let message = (obj["message"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            throw ParseError.backendError(code: (obj["code"] as? String) ?? "error",
+                                          message: message ?? "the backend refused to start")
         }
         guard let event = obj["event"] as? String, event == "ready" else {
             throw ParseError.wrongEvent(obj["event"] as? String)

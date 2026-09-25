@@ -28,7 +28,17 @@ HOME_DIR="${PREFIX:-$HOME}"
 APP_DEST="$HOME_DIR/Applications/Omniwatch.app"
 SHIM_PATH="$HOME_DIR/.local/bin/omniwatch"
 SHARE_DEST_DIR="$HOME_DIR/.local/share/omniwatch"
-CONFIG_DIR="${OMNIWATCH_CONFIG_DIR:-$HOME_DIR/.config/omniwatch}"
+# Same resolution as omniwatch/config.py: $OMNIWATCH_CONFIG_DIR, else
+# ${XDG_CONFIG_HOME:-~/.config}/omniwatch (an empty value counts as unset).
+# With --prefix everything stays inside the prefix: env overrides are
+# ignored so a sandboxed purge (make check-install) can't reach a real dir.
+if [ -n "$PREFIX" ]; then
+  CONFIG_DIR="$PREFIX/.config/omniwatch"
+elif [ -n "${OMNIWATCH_CONFIG_DIR:-}" ]; then
+  CONFIG_DIR="$OMNIWATCH_CONFIG_DIR"
+else
+  CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omniwatch"
+fi
 LOG_DIR="$HOME_DIR/Library/Logs/Omniwatch"
 PLUGIN_DIR="$HOME_DIR/Library/Application Support/iTerm2/Scripts/AutoLaunch"
 PLUGIN_STATUS="$PLUGIN_DIR/omniwatch_status.py"

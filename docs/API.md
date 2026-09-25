@@ -150,7 +150,8 @@ Demo mode records these calls and never runs anything.
 | Status | Condition |
 |---|---|
 | 400 | `text` isn't a string; `submit` is present but not a bool (it defaults to `false`); `expect_hash` is missing or empty |
-| 422 | `text` is empty, longer than 2000 characters, or contains control characters other than `\n` |
+| 422 `multiline_reply` | `text` contains `\n` or `\r` |
+| 422 | `text` is empty, longer than 2000 characters, or contains other control characters |
 | 404 | unknown uid |
 | 422 | `prefs.quick_reply` is `false` ("turned off in Settings") |
 | 503 | `iterm.status` isn't `ok` |
@@ -159,6 +160,11 @@ Demo mode records these calls and never runs anything.
 
 `submit:false` types the text with no newline (single-key menu answers). `submit:true`
 presses Enter after the text.
+
+Replies are always a single line. iTerm2's `write text` types the string raw into the
+session (no bracketed paste) and `newline YES` appends a carriage return, so an embedded
+newline would reach the agent as a keypress that can submit partway through the reply.
+`submit:true` is the only way to press Enter, and it presses it exactly once, after the text.
 
 ### Other actions
 
@@ -542,7 +548,16 @@ Other behavior:
 - **Clean exit (status 0):** `POST /api/v1/shutdown`, SIGTERM or SIGINT. It saves
   `state.json`, removes `runtime.json` and deletes a demo temp dir.
 - **Exit codes:** startup failure (e.g. port in use, demo package missing) → 1, with the
-  message on stderr and no ready line. Bad CLI usage → 2.
+  message on stderr and no ready line. Bad CLI usage → 2. Another backend already running → 3.
+- **One backend per config dir.** Before starting, `serve` reads `runtime.json` and treats a
+  backend as running if its pid is alive and `/api/v1/health` answers. With `--browser` (and
+  for bare `omniwatch`), it opens that backend's URL and exits 0. Otherwise it exits 3 and
+  writes the reason to stderr. With `--ready-json`, stdout gets one error line instead of the
+  ready line (no token):
+  `{"event":"error","code":"already_running","message":"…","pid":N,"port":N}`. The Swift shell
+  shows `message` in its error view and doesn't restart. A demo without `--config-dir` or
+  `$OMNIWATCH_CONFIG_DIR` uses a fresh temp dir, so it never conflicts. Two backends started
+  at the same instant can both pass the check.
 - Without `--ready-json`, stdout gets one human-readable line with the auth URL.
 - In demo mode, the one-time state import from `~/.config/ultrawatch/state.json` is disabled,
   so your real labels never leak into a demo.

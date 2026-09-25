@@ -28,6 +28,17 @@ enum ReadyLineTests {
             do { _ = try ReadyLine.parse(#"{"port":1,"token":"t","pid":2}"#); check(false) }
             catch let e as ReadyLine.ParseError { checkEqual(e, .wrongEvent(nil)) }
         },
+        TestCase(name: "backendErrorEvent") {
+            let line = #"{"event":"error","code":"already_running","message":"another Omniwatch backend is already running; quit it first","pid":9,"port":1}"#
+            do { _ = try ReadyLine.parse(line); check(false, "no throw") }
+            catch let e as ReadyLine.ParseError {
+                checkEqual(e, .backendError(code: "already_running",
+                                            message: "another Omniwatch backend is already running; quit it first"))
+                checkEqual(e.description, "another Omniwatch backend is already running; quit it first")
+            }
+            do { _ = try ReadyLine.parse(#"{"event":"error"}"#); check(false, "no throw") }
+            catch let e as ReadyLine.ParseError { checkEqual(e, .backendError(code: "error", message: "the backend refused to start")) }
+        },
         TestCase(name: "rejectsBadPort") {
             for bad in ["0", "65536", "-1", "\"80\"", "80.5", "true"] {
                 do { _ = try ReadyLine.parse("{\"event\":\"ready\",\"port\":\(bad),\"token\":\"t\",\"pid\":2}"); check(false, bad) }

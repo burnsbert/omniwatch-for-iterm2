@@ -92,6 +92,30 @@ enum BackendProcessTests {
             guard let exit = try runUntilExit("crash") else { return }
             checkEqual(exit, .handshakeFailed("backend exited with status 3 before the ready line"))
         },
+        TestCase(name: "refusalIsReported") {
+            guard let exit = try runUntilExit("already-running") else { return }
+            checkEqual(exit, .refused("another Omniwatch backend is already running for /tmp/x (pid 42, port 5000); quit it first"))
+        },
+        TestCase(name: "supervisorDoesNotRestartARefusal") {
+            guard let l = FakeBackend.launch() else { return }
+            let s = BackendSupervisor(makeLaunch: { l }, environment: FakeBackend.env(["FAKE_BACKEND_MODE": "already-running"]),
+                                      policy: RestartPolicy(delays: [0.1], maxRestarts: 5, window: 60))
+            var seen: [String] = []
+            s.onStatus = { st in
+                switch st {
+                case .starting: seen.append("starting")
+                case .restarting: seen.append("restarting")
+                case .failed: seen.append("failed")
+                default: seen.append("\(st)")
+                }
+            }
+            s.start()
+            check(waitUntil(10) { seen.last == "failed" }, "\(seen)")
+            _ = waitUntil(0.5) { seen.count > 2 }   // no restart may follow
+            checkEqual(seen, ["starting", "failed"])
+            checkEqual(s.attempts, 1)
+            if case .failed(let why) = s.status { check(why.contains("already running"), why) }
+        },
         TestCase(name: "garbageReadyLine") {
             guard let exit = try runUntilExit("garbage") else { return }
             checkEqual(exit, .handshakeFailed("ready line is not a JSON object"))
