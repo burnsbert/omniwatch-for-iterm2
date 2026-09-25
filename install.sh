@@ -46,7 +46,7 @@ while [ $# -gt 0 ]; do
     --with-plugin) WITH_PLUGIN=1; shift ;;
     --no-open) NO_OPEN=1; shift ;;
     -h|--help)
-      sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+      awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"
       exit 0 ;;
     *) echo "install.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
