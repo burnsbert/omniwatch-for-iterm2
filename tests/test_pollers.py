@@ -335,6 +335,53 @@ class TestItermWorkerActions(TripwireTestCase):
         self.worker._poll_paths()  # fake_iterm.paths() raises — must not propagate
         self.assertEqual(self.drain(), [])
 
+    def test_snapshot_failure_is_logged_at_warning(self):
+        def boom(at=0.0):
+            raise RuntimeError('osascript timed out')
+        self.fake_iterm.snapshot = boom
+        with self.assertLogs('omniwatch.pollers', level='WARNING') as cm:
+            self.worker._poll_snapshot()
+        self.assertTrue(any('osascript timed out' in m for m in cm.output))
+        self.assertTrue(any('attempt 1' in m for m in cm.output))
+
+    def test_paths_failure_is_logged_at_warning(self):
+        with self.assertLogs('omniwatch.pollers', level='WARNING') as cm:
+            self.worker._poll_paths()  # fake_iterm.paths() raises 'boom'
+        self.assertTrue(any('boom' in m for m in cm.output))
+
+    def test_action_failure_is_logged_at_warning(self):
+        self.fake_iterm.goto_result = False
+        with self.assertLogs('omniwatch.pollers', level='WARNING') as cm:
+            self.worker._do_action('goto', ('UID-1',))
+        self.assertTrue(any('session not found' in m for m in cm.output))
+
+    def test_consecutive_failures_are_counted_and_rate_limited(self):
+        def boom(at=0.0):
+            raise RuntimeError('down')
+        self.fake_iterm.snapshot = boom
+        for _ in range(3):
+            self.worker._poll_snapshot()
+        self.assertEqual(self.worker._snapshot_fail_count, 3)
+        # 4th consecutive failure: not <=3 and not a multiple of 10 — must
+        # not log (rate-limited), unlike the first three. (Python 3.9 has
+        # no assertNoLogs; test the rate-limit predicate directly instead
+        # of asserting log silence.)
+        self.assertFalse(pollers._should_log_failure(4))
+        self.worker._poll_snapshot()
+        self.assertEqual(self.worker._snapshot_fail_count, 4)
+        self.assertTrue(pollers._should_log_failure(10))
+
+    def test_recovery_after_failures_is_logged_at_info(self):
+        def boom(at=0.0):
+            raise RuntimeError('down')
+        self.fake_iterm.snapshot = boom
+        self.worker._poll_snapshot()
+        self.fake_iterm.snapshot = lambda at=0.0: ItermSnapshot(at=at)
+        with self.assertLogs('omniwatch.pollers', level='INFO') as cm:
+            self.worker._poll_snapshot()
+        self.assertTrue(any('recovered after 1 failed attempt' in m for m in cm.output))
+        self.assertEqual(self.worker._snapshot_fail_count, 0)
+
 
 class _NoopAgents:
     def scan(self):

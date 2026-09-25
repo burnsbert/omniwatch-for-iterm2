@@ -235,7 +235,7 @@ percentage reaches the configured threshold and it hasn't been shown this month
 ```json
 {
   "version": "1.0.0", "seq": 812, "server_time": 1790000000.12, "demo": false,
-  "iterm": {"status": "ok", "error": "", "last_poll_at": 1790000000.0, "poll_ms": 240, "stale": false},
+  "iterm": {"status": "ok", "error": "", "last_poll_at": 1790000000.0, "poll_ms": 240, "stale": false, "consecutive_failures": 0, "slow": false},
   "summary": {"tabs": 9, "agents": 4, "waiting": 2, "busy": 1, "waiting_uids": ["A1…", "B2…"]},
   "windows": [{"id": 104, "number": 1}, {"id": 311, "number": 2}],
   "sessions": [Session, …],
@@ -260,6 +260,18 @@ percentage reaches the configured threshold and it hasn't been shown this month
   - `error`: the last good sessions stay, and `stale` is `true`.
 - `iterm.stale` is also `true` when `status` is `ok` but the last good snapshot is more than
   4× the snapshot interval old (8 s by default).
+- A single failed poll never flips `status` to `error` ("cry wolf" — a slow/busy iTerm2 is
+  common and self-recovers). `status` only becomes `error` after
+  `consecutive_failures >= 2` or once the last good snapshot is >15 s old, whichever comes
+  first (both configurable — see `omniwatch/config.py`'s `ITERM_ERROR_AFTER_FAILURES`/
+  `ITERM_ERROR_AFTER_STALE_SECONDS`). `not_authorized` has no soft period — it's surfaced
+  immediately since it isn't transient.
+- `iterm.consecutive_failures` is the current run of failed polls (0 while healthy); `error`
+  rides along even while `status` stays `ok` (a client MAY show it in a tooltip, but MUST NOT
+  treat non-empty `error` alone as a failure state — check `status`/`slow` instead).
+- `iterm.slow` is `true` only while `status` is `ok`/`connecting` and `consecutive_failures >
+  0` — a quiet "retrying" signal, distinct from the `error` status and from `stale` (which is
+  purely time-based). It's meant for a subtle hint, not the error banner.
 - `iterm.poll_ms` is always `0` in demo mode.
 - `summary.stalled` **(P1→v1)** counts stalled sessions.
 - `stats` **(P1→v1)**: see Stats below.

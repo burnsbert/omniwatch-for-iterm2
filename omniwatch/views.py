@@ -214,9 +214,11 @@ def screens(sessions):
             for s in sessions}
 
 
-def iterm_view(status, error, last_poll_at, poll_ms, stale):
+def iterm_view(status, error, last_poll_at, poll_ms, stale,
+              consecutive_failures=0, slow=False):
     return {'status': status, 'error': error, 'last_poll_at': last_poll_at,
-            'poll_ms': poll_ms, 'stale': stale}
+            'poll_ms': poll_ms, 'stale': stale,
+            'consecutive_failures': consecutive_failures, 'slow': slow}
 
 
 def usage_block(kind, snap, show_dollars, now, stale_since=None,

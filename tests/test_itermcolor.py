@@ -1,5 +1,7 @@
+import asyncio
 import os
 import sys
+import threading
 import types
 import unittest
 import unittest.mock
@@ -14,8 +16,16 @@ from omniwatch import itermcolor
 
 # ---------------------------------------------------------------------
 # A fake `iterm2` package (async API) so fetch_colors()/set_session_color()
-# can be exercised end-to-end without the optional real package, a real
-# iTerm2, or any subprocess/network call.
+# and _PersistentSession can be exercised end-to-end without the optional
+# real package, a real iTerm2, or any subprocess/network call.
+#
+# The fake Connection.run() mirrors the real package's contract closely
+# enough to exercise T028's persistent-connection design: forever=True
+# blocks (here: waits on an asyncio.Event the test can trigger) after the
+# passed coroutine returns, and — matching the real package's
+# Connection.async_connect(), which wraps a disconnect in a bare `except
+# Exception: sys.exit(1)` — raises SystemExit when that "disconnect"
+# event fires, not a plain exception.
 # ---------------------------------------------------------------------
 
 class _FakeColor:
@@ -57,30 +67,61 @@ class _FakeApp:
         self.windows = windows
 
 
-def make_fake_iterm2_module(app, connect_error=None):
-    """A minimal fake of the `iterm2` package's async surface."""
+class _FakeConnection:
+    """One instance per `_connect_and_run()` call (a fresh `iterm2.Connection()`
+    each time, matching the real API); `connect_errors` pops a pending
+    connect-time exception to raise instead of connecting."""
+
+    def __init__(self, connect_errors):
+        self.loop = None
+        self._connect_errors = connect_errors
+        self.disconnect_event = None
+
+    def run(self, forever, coro, retry=False, debug=False):
+        if self._connect_errors:
+            raise self._connect_errors.pop(0)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+        self.disconnect_event = asyncio.Event()
+
+        async def async_main():
+            await coro(self)
+            if forever:
+                await self.disconnect_event.wait()
+                raise SystemExit(1)   # mirrors the real sys.exit(1) on disconnect
+        try:
+            loop.run_until_complete(async_main())
+        finally:
+            asyncio.set_event_loop(None)
+
+
+def make_fake_iterm2_module(app, connect_errors=None):
+    """A minimal fake of the `iterm2` package's async surface. `connect_errors`
+    (a list, consumed in order) lets a test force N initial connect
+    failures before a real connection succeeds."""
     mod = types.ModuleType('iterm2')
+    errors = list(connect_errors or [])
+    connections = []
 
-    class Connection:
+    class Connection(_FakeConnection):
         def __init__(self):
-            self.loop = None
-
-        def run_until_complete(self, main, retry=False):
-            import asyncio
-            if connect_error is not None:
-                raise connect_error
-            self.loop = asyncio.new_event_loop()
-            try:
-                self.loop.run_until_complete(main(self))
-            finally:
-                pass  # itermcolor._run_connected() closes it
+            super().__init__(errors)
+            connections.append(self)
 
     async def async_get_app(connection):
         return app
 
     mod.Connection = Connection
     mod.async_get_app = async_get_app
+    mod._connections = connections   # test introspection only
     return mod
+
+
+def disconnect(fake_mod):
+    """Simulates the live connection dropping (see _FakeConnection.run)."""
+    conn = fake_mod._connections[-1]
+    conn.loop.call_soon_threadsafe(conn.disconnect_event.set)
 
 
 class TestClassifyRgb(TripwireTestCase):
@@ -112,16 +153,6 @@ class TestUidFromSessionId(TripwireTestCase):
         self.assertEqual(itermcolor.uid_from_session_id(sid), sid)
 
 
-class TestFetchColorsUnavailable(TripwireTestCase):
-    def test_missing_package_raises_color_api_unavailable(self):
-        # `iterm2` is an optional dependency this project never requires;
-        # force the ImportError path regardless of whether it happens to
-        # be installed in whatever environment runs this test.
-        with unittest.mock.patch.dict(sys.modules, {'iterm2': None}):
-            with self.assertRaises(itermcolor.ColorApiUnavailable):
-                itermcolor.fetch_colors()
-
-
 class TestNameToRgb(TripwireTestCase):
     def test_has_all_seven_presets(self):
         self.assertEqual(set(itermcolor.NAME_TO_RGB),
@@ -130,18 +161,39 @@ class TestNameToRgb(TripwireTestCase):
         self.assertEqual(itermcolor.NAME_TO_RGB['red'], (251, 107, 98))
 
 
-class TestSetSessionColorUnavailable(TripwireTestCase):
-    def test_missing_package_raises_color_api_unavailable(self):
+class TestModuleUnavailable(TripwireTestCase):
+    """fetch_colors()/set_session_color() must raise ColorApiUnavailable
+    before ever touching _PersistentSession/starting a thread, whenever
+    the `iterm2` package itself can't be imported."""
+
+    def test_fetch_colors_missing_package(self):
+        with unittest.mock.patch.dict(sys.modules, {'iterm2': None}):
+            with self.assertRaises(itermcolor.ColorApiUnavailable):
+                itermcolor.fetch_colors()
+
+    def test_set_session_color_missing_package(self):
         with unittest.mock.patch.dict(sys.modules, {'iterm2': None}):
             with self.assertRaises(itermcolor.ColorApiUnavailable):
                 itermcolor.set_session_color('UID-1', 'red')
 
 
-class TestFetchColorsWithFakeApi(TripwireTestCase):
-    """New: exercises the async fetch path end-to-end with a fake
-    `iterm2` module — no real iTerm2, no subprocess, no network."""
+# ---------------------------------------------------------------------
+# _PersistentSession — each test builds its own instance (never the
+# module-level singleton) so no test shares a background thread/loop
+# with another, and short backoff/timeouts keep this suite fast.
+# ---------------------------------------------------------------------
 
-    def test_collects_colors_from_sessions_with_a_tab_color(self):
+class TestPersistentSession(TripwireTestCase):
+    def session(self, **kw):
+        kw.setdefault('backoff', 0.05)
+        kw.setdefault('ready_timeout', 1)
+        kw.setdefault('call_timeout', 2)
+        s = itermcolor._PersistentSession(**kw)
+        s._stop = False
+        self.addCleanup(setattr, s, '_stop', True)
+        return s
+
+    def test_fetch_collects_colors_from_sessions_with_a_tab_color(self):
         colored = _FakeSession('w0t0p0:UID-1',
                                _FakeProfile(True, _FakeColor(251, 107, 98)))
         no_color_flag = _FakeSession('w0t0p1:UID-2',
@@ -152,47 +204,141 @@ class TestFetchColorsWithFakeApi(TripwireTestCase):
             [colored, no_color_flag, no_color_value, no_profile])])])
         fake_mod = make_fake_iterm2_module(app)
         with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
-            colors = itermcolor.fetch_colors()
+            s = self.session()
+            colors = s.run_coro(itermcolor._async_fetch)
         self.assertEqual(colors, {'UID-1': 'red'})
 
     def test_empty_app_returns_empty_dict(self):
         fake_mod = make_fake_iterm2_module(_FakeApp([]))
         with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
-            self.assertEqual(itermcolor.fetch_colors(), {})
+            s = self.session()
+            self.assertEqual(s.run_coro(itermcolor._async_fetch), {})
 
-    def test_connection_failure_propagates_as_normal_exception(self):
+    def test_connect_failure_raises_not_connected_and_never_hangs(self):
+        # backoff (1s) deliberately outlasts ready_timeout (0.1s), so the
+        # caller must see ColorsApiNotConnected before the retry succeeds.
         fake_mod = make_fake_iterm2_module(
-            _FakeApp([]), connect_error=ConnectionRefusedError('no api'))
+            _FakeApp([]), connect_errors=[ConnectionRefusedError('no api')])
         with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
-            with self.assertRaises(ConnectionRefusedError):
-                itermcolor.fetch_colors()
+            s = self.session(ready_timeout=0.1, backoff=1.0)
+            with self.assertRaises(itermcolor.ColorsApiNotConnected):
+                s.run_coro(itermcolor._async_fetch)
 
+    def test_reconnects_after_a_transient_connect_failure(self):
+        fake_mod = make_fake_iterm2_module(
+            _FakeApp([]), connect_errors=[ConnectionRefusedError('no api')])
+        with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
+            s = self.session(ready_timeout=0.1, backoff=1.0)
+            with self.assertRaises(itermcolor.ColorsApiNotConnected):
+                s.run_coro(itermcolor._async_fetch)
+            # backoff elapses, the second connect attempt succeeds
+            s.ready_timeout = 2
+            colors = s.run_coro(itermcolor._async_fetch)
+        self.assertEqual(colors, {})
 
-class TestSetSessionColorWithFakeApi(TripwireTestCase):
-    def test_sets_color_on_matching_session(self):
+    def test_two_fetches_reuse_one_connection_no_reconnect(self):
+        app = _FakeApp([])
+        fake_mod = make_fake_iterm2_module(app)
+        with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
+            s = self.session()
+            s.run_coro(itermcolor._async_fetch)
+            s.run_coro(itermcolor._async_fetch)
+            self.assertEqual(len(fake_mod._connections), 1,
+                             'a second poll must not reconnect')
+
+    def test_set_color_then_fetch_share_the_same_connection(self):
         session = _FakeSession('w0t0p0:UID-1', None)
         app = _FakeApp([_FakeWindow([_FakeTab([session])])])
         fake_mod = make_fake_iterm2_module(app)
         with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
-            ok = itermcolor.set_session_color('UID-1', 'blue')
-        self.assertTrue(ok)
+            s = self.session()
+            ok = s.run_coro(lambda a: itermcolor._async_set_color(a, 'UID-1', 'blue'))
+            self.assertTrue(ok)
+            s.run_coro(itermcolor._async_fetch)
+            self.assertEqual(len(fake_mod._connections), 1)
         self.assertEqual(session.injected,
                          [itermcolor._tab_color_escape_bytes(95, 163, 248)])
+
+    def test_disconnect_triggers_a_reconnect_with_backoff(self):
+        app = _FakeApp([])
+        fake_mod = make_fake_iterm2_module(app)
+        with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
+            s = self.session(backoff=0.1)
+            s.run_coro(itermcolor._async_fetch)
+            self.assertEqual(len(fake_mod._connections), 1)
+            disconnect(fake_mod)
+            # Give the background thread time to notice (SystemExit),
+            # back off, and reconnect.
+            reconnected = threading.Event()
+
+            def wait_for_reconnect():
+                import time
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline:
+                    if len(fake_mod._connections) >= 2:
+                        reconnected.set()
+                        return
+                    time.sleep(0.02)
+            wait_for_reconnect()
+            self.assertTrue(reconnected.is_set(), 'never reconnected')
+            colors = s.run_coro(itermcolor._async_fetch)
+        self.assertEqual(colors, {})
+        self.assertEqual(len(fake_mod._connections), 2)
+
+    def test_no_matching_session_returns_false(self):
+        app = _FakeApp([_FakeWindow([_FakeTab([])])])
+        fake_mod = make_fake_iterm2_module(app)
+        with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
+            s = self.session()
+            ok = s.run_coro(lambda a: itermcolor._async_set_color(a, 'UID-nope', 'red'))
+        self.assertFalse(ok)
 
     def test_clearing_color_sends_reset_bytes(self):
         session = _FakeSession('w0t0p0:UID-1', None)
         app = _FakeApp([_FakeWindow([_FakeTab([session])])])
         fake_mod = make_fake_iterm2_module(app)
         with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
-            ok = itermcolor.set_session_color('UID-1', None)
+            s = self.session()
+            ok = s.run_coro(lambda a: itermcolor._async_set_color(a, 'UID-1', None))
         self.assertTrue(ok)
         self.assertEqual(session.injected, [itermcolor.TAB_COLOR_RESET_BYTES])
 
-    def test_no_matching_session_returns_false(self):
-        app = _FakeApp([_FakeWindow([_FakeTab([])])])
+
+class TestModuleLevelEntryPoints(TripwireTestCase):
+    """fetch_colors()/set_session_color() against the shared module-level
+    `itermcolor._session` singleton — patched per test so no state (or
+    background thread) leaks between tests or into the rest of the
+    suite."""
+
+    def patched_session(self, **kw):
+        kw.setdefault('backoff', 0.05)
+        kw.setdefault('ready_timeout', 1)
+        kw.setdefault('call_timeout', 2)
+        s = itermcolor._PersistentSession(**kw)
+        patcher = unittest.mock.patch.object(itermcolor, '_session', s)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(setattr, s, '_stop', True)
+        return s
+
+    def test_fetch_colors_end_to_end(self):
+        colored = _FakeSession('w0t0p0:UID-1',
+                               _FakeProfile(True, _FakeColor(95, 163, 248)))
+        app = _FakeApp([_FakeWindow([_FakeTab([colored])])])
         fake_mod = make_fake_iterm2_module(app)
+        self.patched_session()
         with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
-            self.assertFalse(itermcolor.set_session_color('UID-nope', 'red'))
+            self.assertEqual(itermcolor.fetch_colors(), {'UID-1': 'blue'})
+
+    def test_set_session_color_end_to_end(self):
+        session = _FakeSession('w0t0p0:UID-1', None)
+        app = _FakeApp([_FakeWindow([_FakeTab([session])])])
+        fake_mod = make_fake_iterm2_module(app)
+        self.patched_session()
+        with unittest.mock.patch.dict(sys.modules, {'iterm2': fake_mod}):
+            self.assertTrue(itermcolor.set_session_color('UID-1', 'red'))
+        self.assertEqual(session.injected,
+                         [itermcolor._tab_color_escape_bytes(251, 107, 98)])
 
 
 if __name__ == '__main__':

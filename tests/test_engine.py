@@ -295,12 +295,70 @@ class TestItermStatus(EngineTestCase):
         h = self.harness()
         h.poll()
         h.p.iterm.mode = 'error'
-        h.poll()
+        h.poll(times=2)   # 2 consecutive failures: config.ITERM_ERROR_AFTER_FAILURES
         doc = h.engine.state()
         self.assertEqual(doc['iterm']['status'], 'error')
         self.assertEqual(doc['iterm']['error'], 'osascript timed out')
         self.assertTrue(doc['iterm']['stale'])
+        self.assertEqual(doc['iterm']['consecutive_failures'], 2)
         self.assertEqual(len(doc['sessions']), 4)
+
+    def test_one_failure_stays_soft_two_failures_go_to_error(self):
+        """T028: a single failed poll must not turn the UI red — only a
+        second consecutive failure (config.ITERM_ERROR_AFTER_FAILURES)
+        promotes iterm.status to 'error'."""
+        h = self.harness()
+        h.poll()
+        h.p.iterm.mode = 'error'
+        h.poll()   # 1st consecutive failure
+        soft = h.engine.state()['iterm']
+        self.assertEqual(soft['status'], 'ok', 'one failed poll must stay quiet')
+        self.assertEqual(soft['consecutive_failures'], 1)
+        self.assertTrue(soft['slow'])
+        self.assertFalse(soft['stale'])
+        self.assertEqual(soft['error'], 'osascript timed out',
+                         'the raw error rides along even while status stays ok')
+        h.poll()   # 2nd consecutive failure
+        hard = h.engine.state()['iterm']
+        self.assertEqual(hard['status'], 'error')
+        self.assertEqual(hard['consecutive_failures'], 2)
+        self.assertFalse(hard['slow'])
+        self.assertTrue(hard['stale'])
+
+    def test_recovers_to_ok_and_resets_failure_count(self):
+        h = self.harness()
+        h.poll()
+        h.p.iterm.mode = 'error'
+        h.poll(times=2)
+        self.assertEqual(h.engine.state()['iterm']['status'], 'error')
+        h.p.iterm.mode = 'ok'
+        h.poll()
+        recovered = h.engine.state()['iterm']
+        self.assertEqual(recovered['status'], 'ok')
+        self.assertEqual(recovered['consecutive_failures'], 0)
+        self.assertFalse(recovered['slow'])
+
+    def test_stale_after_15_seconds_promotes_even_below_the_failure_count(self):
+        """A single failure that's simply very old (clock jump, e.g. the
+        Mac slept) also promotes to 'error' even at consecutive_failures
+        == 1, via config.ITERM_ERROR_AFTER_STALE_SECONDS."""
+        h = self.harness()
+        h.poll()
+        h.p.clock.advance(16)
+        h.p.iterm.mode = 'error'
+        h.poll()
+        it = h.engine.state()['iterm']
+        self.assertEqual(it['status'], 'error')
+        self.assertEqual(it['consecutive_failures'], 1)
+
+    def test_not_authorized_has_no_soft_period(self):
+        h = self.harness()
+        h.poll()
+        h.p.iterm.mode = 'not_authorized'
+        h.poll()
+        it = h.engine.state()['iterm']
+        self.assertEqual(it['status'], 'not_authorized')
+        self.assertFalse(it['slow'])
 
     def test_stale_after_four_intervals(self):
         h = self.harness()
@@ -669,7 +727,7 @@ class TestReply(EngineTestCase):
 
     def test_iterm_error_503(self):
         self.h.p.iterm.mode = 'error'
-        self.h.poll()
+        self.h.poll(times=2)   # 2 consecutive failures: config.ITERM_ERROR_AFTER_FAILURES
         self.assertApiError(503, 'iterm_unavailable', self.h.engine.reply, fp.UID_WAIT, self.body())
 
 

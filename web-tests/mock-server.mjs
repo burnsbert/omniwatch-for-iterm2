@@ -391,7 +391,8 @@ function scenario(name) {
       break;
     case 'error':
       st = defaultScenario();
-      st.iterm = { status: 'error', error: 'osascript timed out after 10s', last_poll_at: nowS() - 14, poll_ms: 10000, stale: true };
+      st.iterm = { status: 'error', error: 'osascript timed out after 10s', last_poll_at: nowS() - 14,
+                  poll_ms: 10000, stale: true, consecutive_failures: 3, slow: false };
       break;
     case 'stale':
       st = defaultScenario();

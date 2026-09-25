@@ -3,8 +3,9 @@
 // EmptyState panels (§2.9, P-54) and the shortcut HintBar (P-53).
 
 import { h } from '../dom.js';
+import { staleBannerText } from '../viewmodel.js';
 import { icon } from './icons.js';
-import { text, reconcile } from './patch.js';
+import { attr, text, reconcile } from './patch.js';
 
 // ---------------------------------------------------------------- toasts
 
@@ -72,10 +73,16 @@ export function createBanners(ctx, root) {
     quota.hidden = !q;
     if (q) text(quotaText, `Claude usage is at ${Math.round(q.pct || 0)}% of your monthly limit. Draft a heads-up email${q.to ? ` to ${q.to}` : ''}?`);
     const it = f.server.iterm || {};
-    // Stale data stays visible with an error line above it (§2.9 `error`).
+    // Stale data stays visible with a friendlier status line above it
+    // (§2.9 `error`, T028) — the raw error is kept in a tooltip, not the
+    // headline text, which most users can't do anything with.
     const showErr = it.status === 'error' && (f.server.sessions || []).length > 0;
     stale.hidden = !showErr;
-    if (showErr) text(staleText, `iTerm2 query failed: ${it.error || 'unknown error'} — showing the last snapshot`);
+    if (showErr) {
+      const banner = staleBannerText(it, f.now);
+      text(staleText, banner.text);
+      attr(staleText, 'title', banner.title || null);
+    }
   }
   return { update };
 }

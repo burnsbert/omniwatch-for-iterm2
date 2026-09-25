@@ -69,6 +69,20 @@ USAGE_REFRESH_INTERVAL = _interval('usage', 300)
 CODEX_USAGE_REFRESH_INTERVAL = _interval('usage', 300)
 COLOR_INTERVAL = _interval('colors', 5)
 
+# iTerm2 poll resilience (T028): a single failed osascript poll must not
+# turn the UI red — the engine only promotes iterm.status to "error"
+# once ITERM_ERROR_AFTER_FAILURES consecutive polls have failed, or the
+# last good snapshot is older than ITERM_ERROR_AFTER_STALE_SECONDS,
+# whichever comes first. Below that threshold it's a quiet "slow, still
+# retrying" signal (see engine.py's _on_iterm/_iterm_view, docs/API.md).
+ITERM_ERROR_AFTER_FAILURES = 2
+ITERM_ERROR_AFTER_STALE_SECONDS = 15
+
+# A successful iTerm2 poll slower than this is logged at INFO (not a
+# failure, just worth knowing about — e.g. a heavy concurrent poller like
+# an old Ultrawatch TUI sharing the same iTerm2 process).
+SLOW_POLL_SECONDS = 2.0
+
 # Subprocess timeouts (seconds)
 OSASCRIPT_TIMEOUT = 10
 PS_TIMEOUT = 3

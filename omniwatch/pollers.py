@@ -17,7 +17,16 @@ passing unchanged.
 
 All osascript work — polls and actions — serializes on the single
 ItermWorker so iTerm2 never receives concurrent Apple Events.
+
+Logging (T028): every failed poll/action and every slow (>2 s) poll is
+logged to the backend log (see logs.py) so a user-reported "iTerm2 query
+failed" has something in backend.log to point at — previously nothing
+was logged anywhere. `_should_log_failure()` rate-limits: the first few
+consecutive failures always log, then only every 10th, so a long outage
+(or a permanently-denied Automation prompt, which fails every single
+poll forever) doesn't flood the log.
 """
+import logging
 import queue
 import threading
 import time
@@ -25,6 +34,15 @@ import time
 from omniwatch import config, itermcolor
 from omniwatch.iterm import ItermNotAuthorized, ItermNotRunning
 from omniwatch.snapshot import AgentSnapshot, ColorsSnapshot, ItermSnapshot, UsageSnapshot
+
+log = logging.getLogger('omniwatch.pollers')
+
+
+def _should_log_failure(consecutive_failures):
+    """True for each of the first 3 consecutive failures, then only every
+    10th (so a stuck/denied poller logs roughly once per ~20 s at the
+    default 2 s snapshot interval, not on every single poll)."""
+    return consecutive_failures <= 3 or consecutive_failures % 10 == 0
 
 
 class LatestBox:
@@ -58,6 +76,8 @@ class ItermWorker(threading.Thread):
         self.snapshot_interval = snapshot_interval
         self.paths_interval = paths_interval
         self.actions = queue.Queue()
+        self._snapshot_fail_count = 0
+        self._paths_fail_count = 0
 
     def request(self, kind, *args):
         self.actions.put((kind, args))
@@ -93,29 +113,65 @@ class ItermWorker(threading.Thread):
 
     def _poll_snapshot(self):
         now = time.time()
+        t0 = time.monotonic()
         try:
             snap = self.providers.iterm.snapshot(at=now)
         except ItermNotRunning:
+            # Expected/steady state (iTerm2 just isn't open) — not a
+            # failure worth logging.
+            self._snapshot_fail_count = 0
             snap = ItermSnapshot(not_running=True, at=now)
         except ItermNotAuthorized as e:
             # ItermSnapshot has no dedicated field for this (verbatim
             # dataclass, §4.2) — the engine (WP2) maps this prefix to
             # iterm.status == 'not_authorized' (§2.9).
+            self._snapshot_fail_count += 1
+            if _should_log_failure(self._snapshot_fail_count):
+                log.warning('iTerm2 snapshot poll not authorized (attempt %d, %.2fs): %s',
+                           self._snapshot_fail_count, time.monotonic() - t0, e)
             snap = ItermSnapshot(
                 error='not_authorized: ' + (str(e) or 'Not authorized'),
                 at=now)
         except Exception as e:
+            self._snapshot_fail_count += 1
+            if _should_log_failure(self._snapshot_fail_count):
+                log.warning('iTerm2 snapshot poll failed (attempt %d, %.2fs): %s',
+                           self._snapshot_fail_count, time.monotonic() - t0, e)
             snap = ItermSnapshot(error=str(e) or type(e).__name__, at=now)
+        else:
+            dur = time.monotonic() - t0
+            if self._snapshot_fail_count:
+                log.info('iTerm2 snapshot poll recovered after %d failed attempt(s)',
+                        self._snapshot_fail_count)
+            self._snapshot_fail_count = 0
+            if dur > config.SLOW_POLL_SECONDS:
+                log.info('slow iTerm2 snapshot poll: %.2fs for %d session(s)',
+                        dur, len(snap.sessions))
         self.events.put(('iterm', snap))
 
     def _poll_paths(self):
+        t0 = time.monotonic()
         try:
-            self.events.put(('paths', self.providers.iterm.paths(at=time.time())))
-        except Exception:
-            pass  # engine keeps the last paths snapshot
+            paths_snap = self.providers.iterm.paths(at=time.time())
+        except Exception as e:
+            self._paths_fail_count += 1
+            if _should_log_failure(self._paths_fail_count):
+                log.warning('iTerm2 paths poll failed (attempt %d, %.2fs): %s',
+                           self._paths_fail_count, time.monotonic() - t0, e)
+            return  # engine keeps the last paths snapshot
+        dur = time.monotonic() - t0
+        if self._paths_fail_count:
+            log.info('iTerm2 paths poll recovered after %d failed attempt(s)',
+                    self._paths_fail_count)
+        self._paths_fail_count = 0
+        if dur > config.SLOW_POLL_SECONDS:
+            log.info('slow iTerm2 paths poll: %.2fs for %d path(s)',
+                    dur, len(paths_snap.paths))
+        self.events.put(('paths', paths_snap))
 
     def _do_action(self, kind, args):
         ok, detail = True, ''
+        t0 = time.monotonic()
         try:
             if kind == 'goto':
                 ok = self.providers.iterm.goto(args[0])
@@ -136,6 +192,11 @@ class ItermWorker(threading.Thread):
                 self.providers.iterm.probe()
         except Exception as e:
             ok, detail = False, str(e) or type(e).__name__
+        if not ok:
+            # Actions are rare/user-triggered (not a continuous poll), so
+            # every failure is logged — no rate limiting needed.
+            log.warning('iTerm2 action %r failed (%.2fs): %s',
+                       kind, time.monotonic() - t0, detail)
         self.events.put(('action', (kind, ok, detail)))
 
 

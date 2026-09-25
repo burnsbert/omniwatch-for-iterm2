@@ -321,6 +321,7 @@ class Engine:
         self._pending_iterm = None
         self.iterm_status = 'connecting'
         self.iterm_error = ''
+        self.iterm_consecutive_failures = 0
         self.last_poll_at = None
         self.poll_ms = None
         self.paths = {}
@@ -517,6 +518,7 @@ class Engine:
         if snap.not_running or snap.error:
             self._pending_iterm = None    # a held snapshot is older news
         if snap.not_running:
+            self.iterm_consecutive_failures = 0
             self.iterm_status, self.iterm_error = 'not_running', ''
             self.iterm_snap = ItermSnapshot(at=snap.at)
             self.tracker.update((), {}, now)   # garbage-collect every track
@@ -525,11 +527,28 @@ class Engine:
             return
         if snap.error:
             if snap.error.startswith(NOT_AUTHORIZED_PREFIX):
+                # A permission problem isn't transient/racy the way a slow
+                # poll is — surface it immediately (no soft period).
+                self.iterm_consecutive_failures = 0
                 self.iterm_status = 'not_authorized'
                 self.iterm_error = snap.error[len(NOT_AUTHORIZED_PREFIX):]
-            else:
-                self.iterm_status, self.iterm_error = 'error', snap.error
-            return   # keep the last good sessions visible (stale)
+                return
+            # A single failed poll must not turn the UI red ("cry wolf"):
+            # only promote to the hard `error` status after N consecutive
+            # failures, or once the last good snapshot is old enough that
+            # it's clearly not just one slow round trip. Below that
+            # threshold iterm_status is left as-is (usually 'ok') and the
+            # transient error/count still ride along for a soft "slow,
+            # retrying" signal (_iterm_view) — never the danger banner.
+            self.iterm_consecutive_failures += 1
+            stale_for = (now - self.last_poll_at) if self.last_poll_at is not None else None
+            hard = (self.iterm_consecutive_failures >= config.ITERM_ERROR_AFTER_FAILURES or
+                    (stale_for is not None and
+                     stale_for >= config.ITERM_ERROR_AFTER_STALE_SECONDS))
+            self.iterm_error = snap.error
+            if hard:
+                self.iterm_status = 'error'
+            return   # keep the last good sessions visible (soft or stale)
         if poll_ms is None and snap.at:   # ItermWorker stamps `at` with time.time()
             poll_ms = max(0, int(round((time.time() - snap.at) * 1000)))
         if self.agents_snap is None:
@@ -537,8 +556,10 @@ class Engine:
             # shell and "transition" it once `ps` reports in (a spurious
             # waiting notification per launch). Hold the newest snapshot
             # until the first agents snapshot arrives.
+            self.iterm_consecutive_failures = 0
             self._pending_iterm = (snap, poll_ms)
             return
+        self.iterm_consecutive_failures = 0
         self.iterm_status, self.iterm_error = 'ok', ''
         self.last_poll_at = now
         if self.demo:
@@ -695,8 +716,13 @@ class Engine:
         if (self.iterm_status == 'ok' and self.last_poll_at is not None and
                 now - self.last_poll_at > STALE_FACTOR * self.snapshot_interval):
             stale = True
+        # "slow": at least one recent poll failed, but not (yet) enough to
+        # go to the hard `error` status — a quiet signal only (§ T028).
+        slow = self.iterm_status in ('ok', 'connecting') and self.iterm_consecutive_failures > 0
         return views.iterm_view(self.iterm_status, self.iterm_error,
-                                self.last_poll_at, self.poll_ms, stale)
+                                self.last_poll_at, self.poll_ms, stale,
+                                consecutive_failures=self.iterm_consecutive_failures,
+                                slow=slow)
 
     def _usage_view(self, now):
         """UsageBlocks, recomputed only when a snapshot, show_dollars, or a

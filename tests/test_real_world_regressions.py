@@ -61,8 +61,15 @@ class TestStartupClassification(TripwireTestCase):
         p, e = h.p, h.engine
         p.iterm.mode = 'error'
         from omniwatch.engine import poll_iterm
-        e.events.put(('iterm', poll_iterm(p, p.clock.time())))
-        e.pump()
+        # T028: a single failed poll is a soft signal, not "error" (see
+        # tests/test_engine.py's TestItermStatus for that behavior on its
+        # own) — two consecutive failures (config.ITERM_ERROR_AFTER_FAILURES)
+        # crosses the threshold; either way, an error snapshot is never
+        # silently swallowed/held pending an agents snapshot the way a
+        # *good* snapshot is (this test's original regression).
+        for _ in range(2):
+            e.events.put(('iterm', poll_iterm(p, p.clock.time())))
+            e.pump()
         self.assertEqual(e.state()['iterm']['status'], 'error')
 
 

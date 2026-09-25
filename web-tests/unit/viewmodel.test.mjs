@@ -5,8 +5,8 @@ import {
   stateKey, stateLabel, agentLabel, agentLongName, filterHaystack, visibleSessions, gridSessions, listItems,
   effectiveView, nextView, resolveSelection, moveSelection, nextWaitingUid, clampSplit, stepSplit, clampFontScale,
   splitPath, tileName, sessionTitle, accessibleName, spokenDuration, rowTone, rowModel, projectForSession,
-  colorDotTitle, statusChip, emptyState, summaryModel, plural, windowTitle, matchCountText, previewFooter,
-  stateWithAge, visibleUids, nativeThemeValue, gridColumnCount, derive, indexOfUid,
+  colorDotTitle, statusChip, staleBannerText, emptyState, summaryModel, plural, windowTitle, matchCountText,
+  previewFooter, stateWithAge, visibleUids, nativeThemeValue, gridColumnCount, derive, indexOfUid,
 } from '../../omniwatch/web/js/viewmodel.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/state.json', import.meta.url), 'utf8'));
@@ -221,6 +221,30 @@ test('status chip (P-26, §2.9)', () => {
   assert.equal(statusChip({ status: 'ok', stale: true, error: 'e' }, NOW).title, 'e');
   // An old last_poll_at alone is not "stale" (only the backend knows, see viewmodel.js).
   assert.equal(statusChip({ status: 'ok', stale: false, last_poll_at: NOW - 600 }, NOW), null);
+});
+
+test('staleBannerText(): friendlier than the raw osascript error, which goes in title (T028)', () => {
+  const b = staleBannerText({
+    status: 'error', error: "Command '['osascript', '-']' timed out after 10 seconds",
+    consecutive_failures: 3, last_poll_at: NOW - 14,
+  }, NOW);
+  assert.equal(b.text, 'iTerm2 isn’t responding (3 attempts). Showing data from 14s ago. It may be busy or showing a dialog.');
+  assert.equal(b.title, "Command '['osascript', '-']' timed out after 10 seconds");
+  assert.equal(staleBannerText(null, NOW), null);
+  // singular "attempt", and a graceful fallback when consecutive_failures/last_poll_at are absent.
+  const single = staleBannerText({ status: 'error', consecutive_failures: 1 }, NOW);
+  assert.match(single.text, /\(1 attempt\)\. Showing data from a while ago\./);
+});
+
+test('status chip: soft "slow, retrying" signal never looks like an error (T028)', () => {
+  const slow = statusChip({ status: 'ok', slow: true, consecutive_failures: 1 }, NOW);
+  assert.deepEqual([slow.kind, slow.text], ['muted', 'Slow…']);
+  assert.match(slow.title, /retrying/);
+  // stale (time-based) still wins over slow (count-based) when both apply.
+  const staleWins = statusChip({ status: 'ok', stale: true, slow: true, last_poll_at: NOW - 12 }, NOW);
+  assert.equal(staleWins.text, 'Stale · 12s');
+  // A healthy poll (no recent failures) shows nothing.
+  assert.equal(statusChip({ status: 'ok', slow: false, consecutive_failures: 0 }, NOW), null);
 });
 
 test('empty states (§2.9, P-54)', () => {

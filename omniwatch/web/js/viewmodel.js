@@ -317,7 +317,32 @@ export function statusChip(iterm, now) {
     const text = age >= 1 ? `Stale · ${ageStr(age)}` : 'Stale';
     return { kind: 'warn', text, title: iterm.error || 'The last iTerm2 snapshot is out of date' };
   }
+  // A quiet "still trying" hint (P-26, T028): one or more recent polls
+  // failed, but not (yet) enough to go to the full `error`/`stale` state
+  // — never alarming, just informational.
+  if (iterm.slow) {
+    return { kind: 'muted', text: 'Slow…', title: 'iTerm2 is slow to respond, retrying…' };
+  }
   return null;
+}
+
+/**
+ * The stale-data banner shown while `iterm.status === 'error'` and there
+ * are still sessions to show (§2.9, T028): friendlier than the raw
+ * osascript error — attempts + age, with the raw error meant for a
+ * tooltip, not the headline (see components/feedback.js).
+ * @returns {{text:string, title:string}|null}
+ */
+export function staleBannerText(iterm, now) {
+  if (!iterm) return null;
+  const attempts = iterm.consecutive_failures || 1;
+  const age = iterm.last_poll_at != null ? Math.max(0, now - iterm.last_poll_at) : null;
+  const ageText = age != null ? `${ageStr(age)} ago` : 'a while ago';
+  return {
+    text: `iTerm2 isn’t responding (${attempts} attempt${attempts === 1 ? '' : 's'}). `
+      + `Showing data from ${ageText}. It may be busy or showing a dialog.`,
+    title: iterm.error || '',
+  };
 }
 
 /**
