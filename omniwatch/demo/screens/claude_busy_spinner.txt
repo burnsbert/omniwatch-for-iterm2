@@ -1,0 +1,9 @@
+❯ 2
+
+✢ Refactoring invoice totals…
+  ⎿  Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools
+──────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────
+  Sonnet 4.6 | billing (main) [61% remaining]
+  ⏵⏵ auto mode on (shift+tab to cycle)

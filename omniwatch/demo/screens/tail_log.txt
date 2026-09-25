@@ -1,0 +1,4 @@
+2026-09-25T14:02:11Z INFO  request completed path=/healthz status=200 dur=4ms
+2026-09-25T14:02:12Z INFO  request completed path=/orders status=201 dur=41ms
+2026-09-25T14:02:12Z WARN  slow query detected table=orders dur=812ms
+2026-09-25T14:02:13Z INFO  request completed path=/orders/123 status=200 dur=9ms

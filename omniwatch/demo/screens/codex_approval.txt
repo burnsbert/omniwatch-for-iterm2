@@ -1,0 +1,8 @@
+  I need to regenerate the app icons before the release build.
+
+  bundle exec fastlane icons
+
+  Would you like to run the following command?
+
+  Yes (y)
+  No, and tell Codex what to do differently (esc)

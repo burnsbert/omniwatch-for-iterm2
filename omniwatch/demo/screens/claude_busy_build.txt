@@ -1,0 +1,4 @@
+❯ 1
+
+✻ Building… (12s · esc to interrupt)
+  ⎿  Running npm run build
