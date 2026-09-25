@@ -4,7 +4,8 @@
 #   git clone https://github.com/burnsbert/omniwatch-for-iterm2 && \
 #     cd omniwatch-for-iterm2 && ./install.sh
 #
-# Usage: install.sh [--prefix DIR] [--no-app] [--with-colors] [--no-open]
+# Usage: install.sh [--prefix DIR] [--no-app] [--with-colors]
+#                    [--with-plugin] [--no-open]
 #
 #   --prefix DIR    install under DIR instead of $HOME (DIR/Applications,
 #                   DIR/.local/bin, DIR/.local/share/omniwatch) — used by
@@ -16,6 +17,11 @@
 #   --with-colors   also `pip install iterm2` for the tab-color feature
 #                   (network install; opt-in, never run in automated
 #                   tests — see Makefile's check-install).
+#   --with-plugin   also install the iTerm2 status-bar plugin (WP10,
+#                   docs/DESIGN.md §4.8) into
+#                   DIR-or-$HOME/Library/Application Support/iTerm2/
+#                   Scripts/AutoLaunch — opt-in; never run in automated
+#                   tests without --prefix.
 #   --no-open       don't open the app / run anything after installing.
 #                   Always passed in automated tests/CI.
 #
@@ -29,6 +35,7 @@ PREFIX=""
 NO_APP=0
 WITH_COLORS=0
 NO_OPEN=0
+WITH_PLUGIN=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -36,6 +43,7 @@ while [ $# -gt 0 ]; do
     --prefix=*) PREFIX="${1#--prefix=}"; shift ;;
     --no-app) NO_APP=1; shift ;;
     --with-colors) WITH_COLORS=1; shift ;;
+    --with-plugin) WITH_PLUGIN=1; shift ;;
     --no-open) NO_OPEN=1; shift ;;
     -h|--help)
       sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
@@ -137,6 +145,12 @@ esac
 if [ "$WITH_COLORS" -eq 1 ]; then
   log "installing the iterm2 package for tab colors (network)..."
   PYTHON="$PYTHON_BIN" make -C "$REPO_DIR" install-colors
+fi
+
+if [ "$WITH_PLUGIN" -eq 1 ]; then
+  plugin_dest="$HOME_DIR/Library/Application Support/iTerm2/Scripts/AutoLaunch"
+  log "installing the iTerm2 status-bar plugin to $plugin_dest ..."
+  PLUGIN_DEST="$plugin_dest" make -C "$REPO_DIR" install-plugin
 fi
 
 if [ "$NO_OPEN" -eq 0 ]; then

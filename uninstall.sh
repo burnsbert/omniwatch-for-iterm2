@@ -30,11 +30,14 @@ SHIM_PATH="$HOME_DIR/.local/bin/omniwatch"
 SHARE_DEST_DIR="$HOME_DIR/.local/share/omniwatch"
 CONFIG_DIR="${OMNIWATCH_CONFIG_DIR:-$HOME_DIR/.config/omniwatch}"
 LOG_DIR="$HOME_DIR/Library/Logs/Omniwatch"
+PLUGIN_DIR="$HOME_DIR/Library/Application Support/iTerm2/Scripts/AutoLaunch"
+PLUGIN_STATUS="$PLUGIN_DIR/omniwatch_status.py"
+PLUGIN_LIB="$PLUGIN_DIR/omniwatch_plugin_lib.py"
 
 log() { echo "uninstall.sh: $*"; }
 
 removed=0
-for path in "$APP_DEST" "$SHIM_PATH" "$SHARE_DEST_DIR"; do
+for path in "$APP_DEST" "$SHIM_PATH" "$SHARE_DEST_DIR" "$PLUGIN_STATUS" "$PLUGIN_LIB"; do
   if [ -e "$path" ]; then
     rm -rf "$path"
     log "removed $path"
