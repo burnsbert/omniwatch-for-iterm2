@@ -1,0 +1,12 @@
+.rightsize-goal/
+/.*.md
+__pycache__/
+*.pyc
+.DS_Store
+build/
+dist/
+node_modules/
+.coverage
+htmlcov/
+test-results/
+playwright-report/
