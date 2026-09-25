@@ -5,18 +5,17 @@
   <img src="docs/screenshots/split-light.png" alt="Omniwatch split view: a session list on the left (waiting rows amber, fresh rows green), a live preview of the selected session on the right with a quick-reply bar, and a usage strip along the bottom" width="820">
 </picture>
 
-Omniwatch is a GUI rebuild of [Ultrawatch for iTerm2](https://github.com/burnsbert/ultrawatch-for-iterm2)
-that runs in its own window instead of inside iTerm2. If you're running 5–20
+Omniwatch is the successor to [Ultrawatch for iTerm2](https://github.com/burnsbert/ultrawatch-for-iterm2),
+rebuilt as a native macOS app that runs in its own window instead of inside iTerm2. If you're running 5–20
 Claude Code / Codex agents across projects, the time you lose isn't running
 them — it's the time they sit **blocked on you**, and the context-switching
-cost of finding out what each one wants. Omniwatch answers the question
-Ultrawatch answers — **who needs me right now, and what are they doing?** —
-in a native Mac window, with a menu-bar counter and notifications, without
-taking up an iTerm2 tab.
+cost of finding out what each one wants. Omniwatch answers the question —
+**who needs me right now, and what are they doing?** — in a native Mac window,
+with a menu-bar counter and notifications, without taking up an iTerm2 tab.
 
 ## Feature tour
 
-**Parity with Ultrawatch**, in GUI form: live preview of any session's
+**Everything you need to watch your agents**, in GUI form: live preview of any session's
 screen without switching tabs, busy/waiting/idle classification for Claude
 Code and Codex, attention routing (row flash, toast, sound), a usage-limits
 strip for Claude and Codex rolling windows, fuzzy filter, five sort orders,
@@ -306,8 +305,8 @@ A small Swift/AppKit shell (`Omniwatch.app`) spawns and supervises a
 stdlib-only Python backend (`omniwatch serve`) bound to `127.0.0.1` on a
 random port with a per-launch token. The backend polls iTerm2 with one
 batched AppleScript call every 2 seconds, classifies Claude Code and Codex
-sessions by reading their screen contents (the same heuristics as
-Ultrawatch), and serves a small web UI over HTTP + Server-Sent Events. The
+sessions by reading their screen contents, and serves a small web UI over
+HTTP + Server-Sent Events. The
 shell's `WKWebView` loads that UI and also runs its own SSE client to
 drive the menu bar, dock badge, and notifications whether or not the
 window is visible. `omniwatch --browser` runs the identical backend and

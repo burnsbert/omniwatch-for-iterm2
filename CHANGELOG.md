@@ -4,10 +4,10 @@ All notable changes to Omniwatch for iTerm2 are documented here.
 
 ## 1.0.0 — 2026-09-25
 
-Initial release: a GUI rebuild of [Ultrawatch for iTerm2](https://github.com/burnsbert/ultrawatch-for-iterm2)
-that runs in its own native window instead of an iTerm2 tab.
+Initial release of Omniwatch (successor to [Ultrawatch for iTerm2](https://github.com/burnsbert/ultrawatch-for-iterm2)),
+a native macOS app that runs in its own window instead of an iTerm2 tab.
 
-### Parity with Ultrawatch
+### Core features
 
 - Live preview of any session's screen, updated from one batched
   AppleScript snapshot every 2 seconds.
@@ -64,7 +64,7 @@ that runs in its own native window instead of an iTerm2 tab.
 - The curses full-repaint heartbeat and resize handling (a GUI window
   doesn't drift out of sync the way a terminal can).
 - The ASCII-art "you're viewing yourself" title card — replaced by
-  detecting and badging other Ultrawatch/Omniwatch sessions instead of
+  detecting and badging a legacy Ultrawatch TUI running in a tab instead of
   needing a card at all.
 - The 256/8-color terminal palette fallback — replaced by CSS design
   tokens with light, dark, and high-contrast variants.
