@@ -1,0 +1,68 @@
+# Homebrew tap formula template (docs/DESIGN.md §6 "Install"). Builds
+# from source on the user's machine with the Xcode Command Line Tools —
+# no Gatekeeper/notarization problem, since there's no downloaded signed
+# binary. A cask (prebuilt, signed & notarized) is P2 future work and
+# needs release infrastructure this template doesn't have.
+#
+# This is a *template*: a release script fills in @VERSION@ and @SHA256@
+# (the tarball's sha256) before publishing it to a tap, the same
+# @TOKEN@ substitution convention shell/build.sh uses for Info.plist.
+# Not meant to be used as-is.
+class Omniwatch < Formula
+  desc "Native GUI dashboard for iTerm2 Claude Code / Codex agent sessions"
+  homepage "https://github.com/burnsbert/omniwatch-for-iterm2"
+  url "https://github.com/burnsbert/omniwatch-for-iterm2/archive/refs/tags/v@VERSION@.tar.gz"
+  sha256 "@SHA256@"
+  license "MIT"
+  version "@VERSION@"
+
+  depends_on :macos
+  depends_on xcode: :build # provides swiftc via the Command Line Tools
+  depends_on "python@3.11"
+
+  def install
+    # `make dist` builds dist/omniwatch (zipapp) and dist/Omniwatch.app
+    # (best-effort — see dist-app's swiftc check).
+    system "make", "dist"
+
+    libexec.install "dist/omniwatch"
+    libexec.install "dist/Omniwatch.app" if File.exist?("dist/Omniwatch.app")
+
+    # Reuse install.sh's own logic for the shim + app placement rather
+    # than duplicating it here, but keep everything under the Homebrew
+    # prefix (no writes to $HOME during `brew install`; post_install
+    # below is what links the app into ~/Applications, matching every
+    # other menu-bar-app formula's convention).
+    (bin/"omniwatch").write <<~SH
+      #!/bin/bash
+      exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/omniwatch" "$@"
+    SH
+    (bin/"omniwatch").chmod 0755
+  end
+
+  def post_install
+    app = libexec/"Omniwatch.app"
+    return unless app.exist?
+
+    dest = Pathname.new(File.expand_path("~/Applications/Omniwatch.app"))
+    dest.dirname.mkpath
+    FileUtils.rm_rf(dest)
+    FileUtils.cp_r(app, dest)
+    ohai "Installed #{dest} — open it from Spotlight, or `open #{dest}`."
+  end
+
+  def caveats
+    <<~EOS
+      Omniwatch needs Automation permission for iTerm2 the first time it
+      polls (System Settings › Privacy & Security › Automation). Run
+      `omniwatch doctor` to check.
+
+      Optional tab-color support:
+        #{opt_bin}/python3 -m pip install iterm2
+    EOS
+  end
+
+  test do
+    system "#{bin}/omniwatch", "--version"
+  end
+end
