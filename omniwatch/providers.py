@@ -118,13 +118,24 @@ class RealAgentsProvider:
 
 
 class RealUsageProvider:
-    """Wraps one of usage_claude.fetch_usage / usage_codex.fetch_codex_usage."""
+    """Wraps one of usage_claude.fetch_usage / usage_codex.fetch_codex_usage.
 
-    def __init__(self, fetch):
+    `token` (optional) is the matching get_*_oauth_token function; it backs
+    has_credentials(), which the engine uses to tell "no credentials" from
+    "fetch failed" (P-15) and which diagnostics/doctor report."""
+
+    def __init__(self, fetch, token=None):
         self._fetch = fetch
+        self._token = token
 
     def fetch(self):
         return self._fetch()
+
+    def has_credentials(self):
+        """True/False, or None when there's no way to tell."""
+        if self._token is None:
+            return None
+        return bool(self._token())
 
 
 class RealColorsProvider:
@@ -162,8 +173,10 @@ class RealProviders:
     def __init__(self):
         self.iterm = RealItermProvider()
         self.agents = RealAgentsProvider()
-        self.usage_claude = RealUsageProvider(usage_claude.fetch_usage)
-        self.usage_codex = RealUsageProvider(usage_codex.fetch_codex_usage)
+        self.usage_claude = RealUsageProvider(usage_claude.fetch_usage,
+                                              usage_claude.get_oauth_token)
+        self.usage_codex = RealUsageProvider(usage_codex.fetch_codex_usage,
+                                             usage_codex.get_codex_oauth_token)
         self.colors = RealColorsProvider()
         self.opener = RealOpener()
         self.clock = RealClock()

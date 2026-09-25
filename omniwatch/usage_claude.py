@@ -134,7 +134,10 @@ def limits(usage, show_dollars=False, now=None):
     """
     if not usage:
         return []
-    local_now = now.astimezone() if now is not None else None
+    # Naive local time: next_month_start() and project_monthly_limit()
+    # build naive datetimes, and mixing aware/naive raises (swallowed as
+    # an empty reset_text / missing projection).
+    local_now = now.astimezone().replace(tzinfo=None) if now is not None else None
     out = []
     for key, (id_, label, window) in _LIMIT_META.items():
         bucket = usage.get(key)

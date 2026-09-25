@@ -46,8 +46,13 @@ class TestInstallScript(TripwireTestCase):
         self.assertIn('set -euo pipefail', self.src)
 
     def test_declares_every_required_flag(self):
-        for flag in ('--prefix', '--no-app', '--with-colors', '--no-open'):
+        for flag in ('--prefix', '--no-app', '--with-colors', '--with-plugin',
+                    '--no-open'):
             self.assertIn(flag, self.src, flag)
+
+    def test_with_plugin_targets_autolaunch_dir(self):
+        self.assertIn('AutoLaunch', self.src)
+        self.assertIn('install-plugin', self.src)
 
     def test_never_uses_sudo(self):
         # The word appears once in the header comment explaining that
