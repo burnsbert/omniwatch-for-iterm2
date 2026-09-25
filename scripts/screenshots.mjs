@@ -18,8 +18,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../web-tests/node_modules/playwright/index.mjs';
-import { executableFor } from '../web-tests/browsers.mjs';
-import { CHROMIUM_MUTE_ARGS, muteContext } from '../web-tests/audio-mute.mjs';
+import { launchOptions } from '../web-tests/browsers.mjs';
+import { muteContext } from '../web-tests/audio-mute.mjs';
 import { startBackend, resetBackend, DEMO_CLOCK } from '../web-tests/e2e/backend.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,7 +37,7 @@ const THEMES = ['dark', 'light'];
 
 const backend = await startBackend();
 // Muted: headless Chromium still reaches the speakers (web-tests/audio-mute.mjs).
-const browser = await chromium.launch({ headless: true, executablePath: executableFor('chromium'), args: [...CHROMIUM_MUTE_ARGS] });
+const browser = await chromium.launch(launchOptions('chromium'));
 // A clean hero: the quota-email banner is its own feature; dismiss it once.
 await backend.api('POST', '/api/v1/quota-email/skip');
 
@@ -163,7 +163,7 @@ if (problems.length) {
 
 if (verify) {
   // Compare with docs/screenshots: identical bytes, else a pixel diff in a browser canvas.
-  const cmpBrowser = await chromium.launch({ headless: true, executablePath: executableFor('chromium'), args: [...CHROMIUM_MUTE_ARGS] });
+  const cmpBrowser = await chromium.launch(launchOptions('chromium'));
   const cmp = await (await muteContext(await cmpBrowser.newContext())).newPage();
   let identical = 0;
   const diffs = [];
