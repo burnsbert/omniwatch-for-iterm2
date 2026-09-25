@@ -168,8 +168,18 @@ class TestMakefilePackagingTargets(TripwireTestCase):
     def test_dist_depends_on_both_artifacts(self):
         self.assertIn('dist: dist-pyz dist-app', self.src)
 
-    def test_zipapp_entry_point_calls_cli_main(self):
-        self.assertIn('from omniwatch.cli import main', self.src)
+    def test_zipapp_entry_point_calls_the_main_entry(self):
+        # Originally `from omniwatch.cli import main; main()`; the
+        # backend engineer (T008) later routed it through
+        # omniwatch.__main__.run() instead, which adds a flush + hard
+        # os._exit() workaround for a Python 3.13 interpreter-shutdown
+        # abort when poller/handler daemon threads are still parked in a
+        # subprocess or buffered write. Either entry point is fine here;
+        # what matters is that it isn't calling anything else.
+        self.assertTrue(
+            'from omniwatch.cli import main' in self.src or
+            'from omniwatch.__main__ import run' in self.src,
+            self.src)
 
     def test_check_install_never_skips_no_open(self):
         self.assertIn('--no-open', self.src)
