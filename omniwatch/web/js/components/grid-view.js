@@ -71,7 +71,7 @@ export function createGridView(ctx) {
     }
     text(t.tab, m.tabLabel);
     text(t.name, f.tileName(s));
-    text(t.chip, m.agentLabel || (m.dashboard ? 'Ultrawatch' : ''));
+    text(t.chip, m.agentLabel || (m.dashboard ? 'Dashboard' : ''));
     attr(t.chip, 'data-agent', m.agent || (m.dashboard ? 'dashboard' : null));
     t.chip.hidden = !(m.agentLabel || m.dashboard);
     attr(t.dot, 'data-color', m.tabColor || null);

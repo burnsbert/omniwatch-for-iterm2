@@ -41,6 +41,35 @@ test.describe('quick reply', () => {
     await app.toast(/^Replied to/);
   });
 
+  test('replies are one line: pasted breaks are flattened, ⇧⏎ does nothing, and 422 multiline_reply is explained', async ({ app }) => {
+    app.allow('422 POST /api/v1/sessions/DEMO-0001/reply');
+    await app.row('1.1').click();
+    const input = app.page.locator('.ow-preview-full .ow-reply-input');
+    await input.focus();
+    await input.evaluate((el) => {
+      const dt = new DataTransfer();
+      dt.setData('text', 'run it\nwith --watch');
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    });
+    await expect(input).toHaveValue('run it with --watch');
+    await app.toast(/^Line breaks removed — replies are sent as one line$/);
+    let sent = 0;
+    app.page.on('request', (r) => { if (r.url().endsWith('/reply')) sent += 1; });
+    await input.press('Shift+Enter');
+    await app.page.waitForTimeout(300);
+    expect(sent).toBe(0);
+    // The real backend refuses line breaks (API.md 422 multiline_reply) — the UI explains.
+    await app.page.route('**/sessions/DEMO-0001/reply', async (route) => {
+      const body = JSON.parse(route.request().postData());
+      await route.continue({ postData: JSON.stringify({ ...body, text: 'two\nlines' }) });
+    });
+    const resp = app.page.waitForResponse((r) => r.url().endsWith('/reply'));
+    await input.press('Enter');
+    const r = await resp;
+    expect([r.status(), (await r.json()).error.code]).toEqual([422, 'multiline_reply']);
+    await app.toast(/^Replies are sent as one line — remove the line breaks$/);
+  });
+
   test('a stale screen hash gets 409 stale_screen from the real backend and a clear warning', async ({ app }) => {
     app.allow('409 POST /api/v1/sessions/DEMO-0001/reply');
     await app.page.route('**/sessions/DEMO-0001/reply', async (route) => {

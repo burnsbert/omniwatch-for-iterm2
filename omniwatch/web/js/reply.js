@@ -34,12 +34,13 @@ export function replyModel(session, prefs, capabilities) {
 
 /**
  * Validate free text before sending (mirrors the server's rules so the user
- * gets an immediate message): non-empty, ≤2000 chars, and no control
- * characters except newline.
+ * gets an immediate message): one line (no \n / \r — API.md 422
+ * `multiline_reply`), non-empty, ≤2000 chars, no control characters.
  * @returns {{ok:true, text:string}|{ok:false, error:string}}
  */
 export function validateReplyText(text) {
   const t = String(text == null ? '' : text);
+  if (/[\n\r]/.test(t)) return { ok: false, error: 'Replies are sent as one line — remove the line breaks' };
   if (!t.trim()) return { ok: false, error: 'Reply is empty' };
   if (t.length > MAX_REPLY_CHARS) return { ok: false, error: `Reply is longer than ${MAX_REPLY_CHARS} characters` };
   // eslint-disable-next-line no-control-regex
@@ -54,9 +55,15 @@ export function replyErrorMessage(err) {
   if (code === 'stale_screen' || status === 409) {
     return 'The screen changed before the reply was sent — check the prompt and try again';
   }
+  if (code === 'multiline_reply') return 'Replies are sent as one line — remove the line breaks';
   if (code === 'invalid' || status === 422) return 'That session is no longer waiting for a reply';
   if (code === 'iterm_unavailable' || status === 503) return 'iTerm2 is unavailable — reply not sent';
   return `reply failed: ${(err && err.message) || 'unknown error'}`;
+}
+
+/** Flatten pasted text to one line (line breaks → single spaces). */
+export function singleLine(text) {
+  return String(text == null ? '' : text).replace(/\s*[\r\n]+\s*/g, ' ');
 }
 
 /** Label validation for inline edits (P-61: stripped, Unicode, max 80). */

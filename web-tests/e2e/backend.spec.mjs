@@ -1,6 +1,6 @@
 // Backend behaviour visible through the real API (data collection, model,
 // persistence, version): the parity rows that have no pixels of their own.
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';

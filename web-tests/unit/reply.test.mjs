@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  replyModel, validateReplyText, replyErrorMessage, normalizeLabel, normalizeProjectName, MAX_REPLY_CHARS, MAX_LABEL_CHARS,
+  singleLine, replyModel, validateReplyText, replyErrorMessage, normalizeLabel, normalizeProjectName, MAX_REPLY_CHARS, MAX_LABEL_CHARS,
 } from '../../omniwatch/web/js/reply.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/state.json', import.meta.url), 'utf8'));
@@ -37,7 +37,8 @@ test('Codex y/n options map to their keys; no prompt still allows free text', ()
 
 test('free-text validation mirrors the server rules', () => {
   assert.deepEqual(validateReplyText('yes'), { ok: true, text: 'yes' });
-  assert.deepEqual(validateReplyText('a\nb'), { ok: true, text: 'a\nb' });
+  assert.equal(validateReplyText('a\nb').ok, false, 'one line only (API.md 422 multiline_reply)');
+  assert.match(validateReplyText('a\rb').error, /one line/);
   assert.equal(validateReplyText('  ').ok, false);
   assert.equal(validateReplyText(null).ok, false);
   assert.equal(validateReplyText('x'.repeat(MAX_REPLY_CHARS + 1)).ok, false);
@@ -52,6 +53,7 @@ test('reply error messages (409 stale, 422 not waiting, 503)', () => {
   assert.match(replyErrorMessage({ status: 503 }), /iTerm2 is unavailable/);
   assert.equal(replyErrorMessage({ message: 'boom' }), 'reply failed: boom');
   assert.equal(replyErrorMessage(null), 'reply failed: unknown error');
+  assert.match(replyErrorMessage({ code: 'multiline_reply', status: 422 }), /one line/);
 });
 
 test('label and project normalization (P-61: stripped, Unicode, ≤80)', () => {
@@ -63,4 +65,10 @@ test('label and project normalization (P-61: stripped, Unicode, ≤80)', () => {
   assert.equal(normalizeProjectName(' api '), 'api');
   assert.equal(normalizeProjectName(null), '');
   assert.equal(normalizeProjectName('x'.repeat(60)).length, 40);
+});
+
+test('singleLine flattens pasted line breaks to single spaces', () => {
+  assert.equal(singleLine('run it\n  with --watch\r\nplease'), 'run it with --watch please');
+  assert.equal(singleLine('one line'), 'one line');
+  assert.equal(singleLine(null), '');
 });

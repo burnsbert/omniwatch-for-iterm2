@@ -63,7 +63,7 @@ export function updateRow(el, m, { selected, flashing, focused }) {
   text(r.tail, m.path.tail || m.displayName || m.name || '—');
   text(r.age, m.age);
   cls(r.age, 'is-waiting', m.state === 'waiting');
-  text(r.chip, m.agentLabel || (m.dashboard ? 'Ultrawatch' : ''));
+  text(r.chip, m.agentLabel || (m.dashboard ? 'Dashboard' : ''));
   attr(r.chip, 'data-agent', m.agent || (m.dashboard ? 'dashboard' : null));
   r.chip.hidden = !(m.agentLabel || m.dashboard);
   text(r.tab, m.tabLabel);
@@ -140,7 +140,7 @@ export function updateTableRow(el, m, { selected, flashing, focused }) {
   }
   setStateIcon(r.stateEl, m.state, m.muted);
   text(r.stateText, m.muted ? `${m.stateLabel} · muted` : m.stateLabel);
-  text(r.chip, m.agentLabel || (m.dashboard ? 'Ultrawatch' : ''));
+  text(r.chip, m.agentLabel || (m.dashboard ? 'Dashboard' : ''));
   attr(r.chip, 'data-agent', m.agent || (m.dashboard ? 'dashboard' : null));
   r.chip.hidden = !(m.agentLabel || m.dashboard);
   text(r.tab, m.tabLabel);

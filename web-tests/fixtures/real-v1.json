@@ -1,26 +1,25 @@
 {
  "state": {
   "version": "1.0.0",
-  "seq": 17,
-  "server_time": 1790367508.6473525,
+  "seq": 7,
+  "server_time": 1790000000,
   "demo": true,
   "iterm": {
    "status": "ok",
    "error": "",
-   "last_poll_at": 1790367508.6473525,
+   "last_poll_at": 1790000000,
    "poll_ms": 0,
    "stale": false
   },
   "summary": {
    "tabs": 11,
    "agents": 5,
-   "waiting": 3,
-   "busy": 1,
+   "waiting": 2,
+   "busy": 2,
    "stalled": 1,
    "waiting_uids": [
     "DEMO-0001",
-    "DEMO-0007",
-    "DEMO-0002"
+    "DEMO-0007"
    ]
   },
   "windows": [
@@ -51,9 +50,9 @@
      "claude"
     ],
     "state": "waiting",
-    "state_since": 1790367217.4564621,
+    "state_since": 1789999760,
     "attention": true,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "deploy-fix",
     "display_name": "deploy-fix",
@@ -87,9 +86,9 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
-     "codes": "iiiiibbbbbbbbbwbbbbbbbbibbbbbbbbbbbbbbwbbbbbibbw"
+     "codes": "iiiibbbwbbbbbwwbbbbbbbiibbbbbbbbbbbbbbbbbbbibbbw"
     }
    },
    {
@@ -101,17 +100,17 @@
     "tab_label": "1.2",
     "tty": "/dev/ttys002",
     "name": "node",
-    "is_processing": false,
+    "is_processing": true,
     "path": "~/src/billing",
     "path_display": "~/src/billing",
     "agent": "claude",
     "agents": [
      "claude"
     ],
-    "state": "waiting",
-    "state_since": 1790367466.4568458,
-    "attention": true,
-    "last_change": 1790367464.450625,
+    "state": "busy",
+    "state_since": 1789996520,
+    "attention": false,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "node",
@@ -120,34 +119,14 @@
     "project": 2,
     "muted": false,
     "is_dashboard": false,
-    "screen_hash": "cb5d1377",
-    "prompt": {
-     "question": "Do you want to proceed?",
-     "options": [
-      {
-       "key": "1",
-       "label": "Yes",
-       "selected": true
-      },
-      {
-       "key": "2",
-       "label": "Yes, and don't ask again for pytest commands",
-       "selected": false
-      },
-      {
-       "key": "3",
-       "label": "No, and tell Claude what to do differently (esc)",
-       "selected": false
-      }
-     ],
-     "free_text": false
-    },
+    "screen_hash": "6575653e",
+    "prompt": null,
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
-     "codes": "bbbbbbbbbiiiiiiiiibbbbbbbbbbbbbbbwbbbbbbbbbbbbbb"
+     "codes": "bbbbbbbbiiiiiiiiibbbbwbbbbbbbbbbwbbbbbbbbbbbbbbb"
     }
    },
    {
@@ -167,9 +146,9 @@
      "codex"
     ],
     "state": "busy",
-    "state_since": 1790366617.4564621,
+    "state_since": 1789999160,
     "attention": false,
-    "last_change": 1790366597.4564621,
+    "last_change": 1789999140,
     "fresh_until": null,
     "label": "",
     "display_name": "node",
@@ -181,11 +160,11 @@
     "screen_hash": "251bc641",
     "prompt": null,
     "stalled": true,
-    "stalled_since": 1790366597.4564621,
+    "stalled_since": 1789999140,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
-     "codes": "iiiiiiiiiiiiibbbbbbbbbbbbbbbbbbbbbbbiiibbwbbiibb"
+     "codes": "iiiiiiiiiiiibbbbbbbbbbbbbbbbbbbbbbbiiibbbbbbiibb"
     }
    },
    {
@@ -202,10 +181,10 @@
     "path_display": "~/src/infra",
     "agent": null,
     "agents": [],
-    "state": "quiet",
-    "state_since": 1790367466.4568458,
+    "state": "active",
+    "state_since": 1790000000,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "zsh",
@@ -219,7 +198,7 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
      "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     }
@@ -239,9 +218,9 @@
     "agent": null,
     "agents": [],
     "state": "active",
-    "state_since": 1790338657.4564621,
+    "state_since": 1789971200,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "nightly-log",
     "display_name": "nightly-log",
@@ -255,7 +234,7 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
      "codes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
@@ -277,9 +256,9 @@
      "claude"
     ],
     "state": "idle",
-    "state_since": 1790366137.4564621,
+    "state_since": 1789998680,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "node",
@@ -293,9 +272,9 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
-     "codes": "bbbbbbwbbbbbbbbbbbiiiiiiiiibbbbbbbbbbbbbbbbbbbii"
+     "codes": "bbbbbwbbbbbbbbbbbiiiiiiiiibbbbbbbbbbbbbbbbbbbiii"
     }
    },
    {
@@ -315,9 +294,9 @@
      "codex"
     ],
     "state": "waiting",
-    "state_since": 1790367337.4564621,
+    "state_since": 1789999880,
     "attention": true,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "node",
@@ -346,9 +325,9 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
-     "codes": "iiiiiiiiiiiiiiiiiiiiiibbbbbbbbbbbbbbbwbbbbbbbbbb"
+     "codes": "iiiiiiiiiiiiiiiiiiiiibbbbbbbbbbbbbbbwbbbbbbbbbbw"
     }
    },
    {
@@ -359,30 +338,30 @@
     "session_index": 1,
     "tab_label": "2.3",
     "tty": "/dev/ttys008",
-    "name": "python3",
+    "name": "node",
     "is_processing": false,
-    "path": "~/src/ultrawatch-for-iterm2",
-    "path_display": "~/src/ultrawatch-for-iterm2",
+    "path": "~/src/tools",
+    "path_display": "~/src/tools",
     "agent": null,
     "agents": [],
-    "state": "quiet",
-    "state_since": 1790367466.4568458,
+    "state": "active",
+    "state_since": 1790000000,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
-    "display_name": "python3",
-    "title": "~/src/ultrawatch-for-iterm2",
+    "display_name": "node",
+    "title": "~/src/tools",
     "tab_color": "green",
     "project": 3,
     "muted": false,
-    "is_dashboard": true,
-    "screen_hash": "798f2399",
+    "is_dashboard": false,
+    "screen_hash": "d668ceda",
     "prompt": null,
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
      "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     }
@@ -401,10 +380,10 @@
     "path_display": "~/src/docs-site",
     "agent": null,
     "agents": [],
-    "state": "quiet",
-    "state_since": 1790367466.4568458,
+    "state": "active",
+    "state_since": 1790000000,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "zsh",
@@ -418,7 +397,7 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
      "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     }
@@ -437,10 +416,10 @@
     "path_display": "~",
     "agent": null,
     "agents": [],
-    "state": "quiet",
-    "state_since": 1790367466.4568458,
+    "state": "active",
+    "state_since": 1790000000,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "zsh",
@@ -454,7 +433,7 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
      "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     }
@@ -473,10 +452,10 @@
     "path_display": "~",
     "agent": null,
     "agents": [],
-    "state": "quiet",
-    "state_since": 1790367466.4568458,
+    "state": "active",
+    "state_since": 1790000000,
     "attention": false,
-    "last_change": 1790367457.4564621,
+    "last_change": 1790000000,
     "fresh_until": null,
     "label": "",
     "display_name": "zsh",
@@ -490,7 +469,7 @@
     "stalled": false,
     "stalled_since": null,
     "ribbon": {
-     "end": 1790367600,
+     "end": 1790000400,
      "bucket_s": 600,
      "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     }
@@ -502,8 +481,8 @@
     "text": "⏺ I've finished wiring up the new /healthz endpoint. Let me verify the\n  build still passes before handing this back to you.\n\n╭──────────────────────────────────────────────────────────────────────╮\n│ Bash command                                                          │\n│                                                                       │\n│   npm run build                                                       │\n│   Compile the TypeScript sources                                     │\n│                                                                       │\n│ Do you want to proceed?                                               │\n│ ❯ 1. Yes                                                              │\n│   2. Yes, and don't ask again for npm run commands                    │\n│   3. No, and tell Claude what to do differently (esc)                 │\n╰──────────────────────────────────────────────────────────────────────╯"
    },
    "DEMO-0002": {
-    "hash": "cb5d1377",
-    "text": "⏺ Invoice totals refactor is ready. Running the regression suite before\n  merging.\n\n╭──────────────────────────────────────────────────────────────────────╮\n│ Bash command                                                          │\n│                                                                       │\n│   pytest tests/billing -k invoice                                     │\n│   Regression-test the invoice totals refactor                        │\n│                                                                       │\n│ Do you want to proceed?                                               │\n│ ❯ 1. Yes                                                              │\n│   2. Yes, and don't ask again for pytest commands                     │\n│   3. No, and tell Claude what to do differently (esc)                 │\n╰──────────────────────────────────────────────────────────────────────╯"
+    "hash": "6575653e",
+    "text": "❯ 2\n\n✢ Refactoring invoice totals…\n  ⎿  Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools\n──────────────────────────────────────────────────────────────────────────\n❯\n──────────────────────────────────────────────────────────────────────────\n  Sonnet 4.6 | billing (main) [61% remaining]\n  ⏵⏵ auto mode on (shift+tab to cycle)"
    },
    "DEMO-0003": {
     "hash": "251bc641",
@@ -526,8 +505,8 @@
     "text": "  I need to regenerate the app icons before the release build.\n\n  bundle exec fastlane icons\n\n  Would you like to run the following command?\n\n  Yes (y)\n  No, and tell Codex what to do differently (esc)"
    },
    "DEMO-0008": {
-    "hash": "798f2399",
-    "text": "▛▞ ULTRAWATCH v1.2.3 — that's this dashboard\n9 tabs · 4 agents · 1 waiting"
+    "hash": "d668ceda",
+    "text": "devbox:tools user$ npm run dev\n\n> tools@0.4.2 dev\n> vite --port 5174\n\n  VITE v5.4.10  ready in 612 ms\n\n  ➜  Local:   http://localhost:5174/\n  ➜  Network: use --host to expose\n  ➜  press h + enter to show help\n2:02:31 PM [vite] hmr update /src/components/UsageChart.tsx\n2:02:47 PM [vite] hmr update /src/components/UsageChart.tsx, /src/styles/chart.css\n2:03:05 PM [vite] page reload src/routes/settings.tsx"
    },
    "DEMO-0009": {
     "hash": "86a4293c",
@@ -545,59 +524,59 @@
   "usage": {
    "claude": {
     "status": "ok",
-    "fetched_at": 1790367457.4564621,
+    "fetched_at": 1790000000,
     "stale_since": null,
     "limits": [
      {
       "id": "claude.five_hour",
       "label": "Session",
       "window": "5h",
-      "pct": 62.0,
+      "pct": 62,
       "level": "yellow",
-      "resets_at": 1790375588,
-      "reset_text": "2h 15m (Today at 6:33pm)",
+      "resets_at": 1790008084,
+      "reset_text": "2h 14m (Today at 12:28pm)",
       "projection": {
        "kind": "pace",
-       "at": 1790373506,
-       "text": "on pace to hit session limit Today at 5:58pm"
+       "at": 1790006077,
+       "text": "on pace to hit session limit Today at 11:54am"
       },
       "burn": {
-       "rate_per_hour": 23.68,
-       "eta": 1790373234,
+       "rate_per_hour": 23.57,
+       "eta": 1790005803,
        "before_reset": true,
        "at_reset_pct": null,
-       "text": "at this rate: 100% Today at 5:53pm"
+       "text": "at this rate: 100% Today at 11:50am"
       }
      },
      {
       "id": "claude.seven_day",
       "label": "Weekly",
       "window": "7d",
-      "pct": 31.0,
+      "pct": 31,
       "level": "green",
-      "resets_at": 1790810288,
-      "reset_text": "5d 3h (Wednesday at 7:18pm)",
+      "resets_at": 1790442784,
+      "reset_text": "5d 2h (Saturday at 1:13pm)",
       "projection": {
        "kind": "pace",
-       "at": 1790727969,
-       "text": "on pace to hit weekly limit Tuesday at 8:26pm"
+       "at": 1790360615,
+       "text": "on pace to hit weekly limit Friday at 2:23pm"
       },
       "burn": {
        "rate_per_hour": 0.73,
-       "eta": 1790706184,
+       "eta": 1790338727,
        "before_reset": true,
        "at_reset_pct": null,
-       "text": "at this rate: 100% Tuesday at 2:23pm"
+       "text": "at this rate: 100% Friday at 8:18am"
       }
      },
      {
       "id": "claude.seven_day_sonnet",
       "label": "Sonnet",
       "window": "7d",
-      "pct": 12.0,
+      "pct": 12,
       "level": "green",
-      "resets_at": 1790810288,
-      "reset_text": "5d 3h (Wednesday at 7:18pm)",
+      "resets_at": 1790442784,
+      "reset_text": "5d 2h (Saturday at 1:13pm)",
       "projection": null,
       "burn": {
        "rate_per_hour": 0.29,
@@ -611,46 +590,46 @@
       "id": "claude.monthly",
       "label": "Monthly cap",
       "window": "month",
-      "pct": 91.0,
+      "pct": 91,
       "level": "red",
       "resets_at": 1790827200,
-      "reset_text": "5d 7h (Thursday at 12:00am)",
+      "reset_text": "9d 13h (Oct 1 at 12:00am)",
       "has_cap": true,
       "limit_display": null,
       "projection": {
        "kind": "pace",
-       "at": 1790578340,
-       "text": "on pace to hit monthly limit Monday at 2:52am"
+       "at": 1790174540,
+       "text": "on pace to hit monthly limit Wednesday at 10:42am"
       },
       "burn": {
-       "rate_per_hour": 0.17,
-       "eta": 1790554380,
+       "rate_per_hour": 0.2,
+       "eta": 1790162000,
        "before_reset": true,
        "at_reset_pct": null,
-       "text": "at this rate: 100% Sunday at 8:13pm"
+       "text": "at this rate: 100% Wednesday at 7:13am"
       }
      }
     ]
    },
    "codex": {
     "status": "ok",
-    "fetched_at": 1790367457.4564621,
+    "fetched_at": 1790000000,
     "stale_since": null,
     "limits": [
      {
       "id": "codex.five_hour",
       "label": "Session",
       "window": "5h",
-      "pct": 40.0,
+      "pct": 40,
       "level": "green",
-      "resets_at": 1790371328,
-      "reset_text": "1h 4m (Today at 5:22pm)",
+      "resets_at": 1790003824,
+      "reset_text": "1h 3m (Today at 11:17am)",
       "projection": null,
       "burn": {
-       "rate_per_hour": 10.85,
+       "rate_per_hour": 10.84,
        "eta": null,
        "before_reset": false,
-       "at_reset_pct": 51.7,
+       "at_reset_pct": 51.5,
        "text": "at this rate: ~52% at reset"
       }
      },
@@ -658,21 +637,21 @@
       "id": "codex.seven_day",
       "label": "Weekly",
       "window": "7d",
-      "pct": 84.0,
+      "pct": 84,
       "level": "red",
-      "resets_at": 1790468288,
-      "reset_text": "1d 4h (Tomorrow at 8:18pm)",
+      "resets_at": 1790100784,
+      "reset_text": "1d 3h (Tomorrow at 2:13pm)",
       "projection": {
        "kind": "pace",
-       "at": 1790463451,
-       "text": "on pace to hit Codex 7d limit Tomorrow at 6:57pm"
+       "at": 1790096003,
+       "text": "on pace to hit Codex 7d limit Tomorrow at 12:53pm"
       },
       "burn": {
        "rate_per_hour": 0.66,
-       "eta": 1790454730,
+       "eta": 1790087272,
        "before_reset": true,
        "at_reset_pct": null,
-       "text": "at this rate: 100% Tomorrow at 4:32pm"
+       "text": "at this rate: 100% Tomorrow at 10:27am"
       }
      }
     ]
@@ -682,13 +661,14 @@
    "close_window_on_q": true,
    "debug_rule": false,
    "editor": "",
-   "font_scale": 1.0,
+   "font_scale": 1,
    "grid_all": false,
    "hint_bar": true,
    "keep_on_top": false,
    "notifications": {
     "enabled": true,
-    "click": "goto"
+    "click": "goto",
+    "stall": true
    },
    "onboarding_done": false,
    "projects_open": false,
@@ -735,1720 +715,1732 @@
    "debug_rule": false
   },
   "quota_prompt": {
-   "pct": 91.0,
+   "pct": 91,
    "to": "you@example.com"
   },
   "stats": {
-   "day": "2026-09-25",
+   "day": "2026-09-21",
    "waiting_seconds": 4980,
    "longest_wait_s": 780,
    "answered": 14,
-   "waits": 17,
+   "waits": 16,
    "active": [
     {
      "uid": "DEMO-0001",
-     "since": 1790367217.4564621
+     "since": 1789999760
     },
     {
      "uid": "DEMO-0007",
-     "since": 1790367337.4564621
-    },
-    {
-     "uid": "DEMO-0002",
-     "since": 1790367466.4568458
+     "since": 1789999880
     }
    ]
   }
  },
  "history": {
   "uid": "DEMO-0001",
-  "from": 1790338708.6473525,
-  "to": 1790367508.6473525,
+  "from": 1789971200,
+  "to": 1790000000,
   "hours": 8,
   "segments": [
    {
     "state": "idle",
-    "start": 1790338708.6473525,
-    "end": 1790341657.4564621
+    "start": 1789971200,
+    "end": 1789974200
    },
    {
     "state": "busy",
-    "start": 1790341657.4564621,
-    "end": 1790343337.4564621
+    "start": 1789974200,
+    "end": 1789975880
    },
    {
     "state": "waiting",
-    "start": 1790343337.4564621,
-    "end": 1790343697.4564621
+    "start": 1789975880,
+    "end": 1789976240
    },
    {
     "state": "busy",
-    "start": 1790343697.4564621,
-    "end": 1790347057.4564621
+    "start": 1789976240,
+    "end": 1789979600
    },
    {
     "state": "waiting",
-    "start": 1790347057.4564621,
-    "end": 1790347837.4564621
+    "start": 1789979600,
+    "end": 1789980380
    },
    {
     "state": "busy",
-    "start": 1790347837.4564621,
-    "end": 1790352457.4564621
+    "start": 1789980380,
+    "end": 1789985000
    },
    {
     "state": "idle",
-    "start": 1790352457.4564621,
-    "end": 1790353297.4564621
+    "start": 1789985000,
+    "end": 1789985840
    },
    {
     "state": "busy",
-    "start": 1790353297.4564621,
-    "end": 1790356657.4564621
+    "start": 1789985840,
+    "end": 1789989200
    },
    {
     "state": "waiting",
-    "start": 1790356657.4564621,
-    "end": 1790356897.4564621
+    "start": 1789989200,
+    "end": 1789989440
    },
    {
     "state": "busy",
-    "start": 1790356897.4564621,
-    "end": 1790361757.4564621
+    "start": 1789989440,
+    "end": 1789994300
    },
    {
     "state": "waiting",
-    "start": 1790361757.4564621,
-    "end": 1790362117.4564621
+    "start": 1789994300,
+    "end": 1789994660
    },
    {
     "state": "busy",
-    "start": 1790362117.4564621,
-    "end": 1790364997.4564621
+    "start": 1789994660,
+    "end": 1789997540
    },
    {
     "state": "idle",
-    "start": 1790364997.4564621,
-    "end": 1790365657.4564621
+    "start": 1789997540,
+    "end": 1789998200
    },
    {
     "state": "busy",
-    "start": 1790365657.4564621,
-    "end": 1790367217.4564621
+    "start": 1789998200,
+    "end": 1789999760
    },
    {
     "state": "waiting",
-    "start": 1790367217.4564621,
+    "start": 1789999760,
     "end": null
    }
   ],
   "totals": {
-   "busy": 22320.0,
-   "idle": 4448.8,
-   "waiting": 2031.2
+   "busy": 22320,
+   "idle": 4500,
+   "waiting": 1980
   },
   "transitions": 14
  },
  "usage_history": {
-  "from": 1790281108.6473525,
-  "to": 1790367508.6473525,
+  "from": 1789913600,
+  "to": 1790000000,
   "hours": 24,
   "limits": {
    "claude.five_hour": {
     "provider": "claude",
     "points": [
      [
-      1790281957.4564621,
-      56.5
+      1789913600,
+      57.1
      ],
      [
-      1790282857.4564621,
-      60.4
+      1789914500,
+      61.3
      ],
      [
-      1790283757.4564621,
-      64.3
+      1789915400,
+      65.5
      ],
      [
-      1790284657.4564621,
-      68.2
+      1789916300,
+      69.8
      ],
      [
-      1790285557.4564621,
-      72.2
+      1789917200,
+      74
      ],
      [
-      1790286457.4564621,
-      1.9
+      1789918100,
+      0
      ],
      [
-      1790287357.4564621,
-      4.2
+      1789919000,
+      2.3
      ],
      [
-      1790288257.4564621,
-      6.5
+      1789919900,
+      4.9
      ],
      [
-      1790289157.4564621,
-      9.0
+      1789920800,
+      7.6
      ],
      [
-      1790290057.4564621,
-      11.5
+      1789921700,
+      10.4
      ],
      [
-      1790290957.4564621,
-      14.1
+      1789922600,
+      13.2
      ],
      [
-      1790291857.4564621,
-      16.7
+      1789923500,
+      16.2
      ],
      [
-      1790292757.4564621,
-      19.4
+      1789924400,
+      19.1
      ],
      [
-      1790293657.4564621,
-      22.1
+      1789925300,
+      22.2
      ],
      [
-      1790294557.4564621,
-      24.8
+      1789926200,
+      25.2
      ],
      [
-      1790295457.4564621,
-      27.6
+      1789927100,
+      28.3
      ],
      [
-      1790296357.4564621,
-      30.3
+      1789928000,
+      31.5
      ],
      [
-      1790297257.4564621,
-      33.2
+      1789928900,
+      34.6
      ],
      [
-      1790298157.4564621,
-      36.0
+      1789929800,
+      37.8
      ],
      [
-      1790299057.4564621,
-      38.8
+      1789930700,
+      41
      ],
      [
-      1790299957.4564621,
-      41.7
+      1789931600,
+      44.2
      ],
      [
-      1790300857.4564621,
-      44.6
-     ],
-     [
-      1790301757.4564621,
+      1789932500,
       47.5
      ],
      [
-      1790302657.4564621,
-      50.4
+      1789933400,
+      50.7
      ],
      [
-      1790303557.4564621,
-      53.3
+      1789934300,
+      54
      ],
      [
-      1790304457.4564621,
-      1.4
+      1789935200,
+      57.3
      ],
      [
-      1790305357.4564621,
-      3.0
+      1789936100,
+      0
      ],
      [
-      1790306257.4564621,
-      4.7
+      1789937000,
+      2.7
      ],
      [
-      1790307157.4564621,
-      6.5
+      1789937900,
+      5.7
      ],
      [
-      1790308057.4564621,
-      8.3
+      1789938800,
+      8.8
      ],
      [
-      1790308957.4564621,
-      10.2
-     ],
-     [
-      1790309857.4564621,
+      1789939700,
       12.1
      ],
      [
-      1790310757.4564621,
-      14.0
+      1789940600,
+      15.5
      ],
      [
-      1790311657.4564621,
-      15.9
+      1789941500,
+      18.9
      ],
      [
-      1790312557.4564621,
-      17.9
+      1789942400,
+      22.4
      ],
      [
-      1790313457.4564621,
-      19.9
-     ],
-     [
-      1790314357.4564621,
-      21.9
-     ],
-     [
-      1790315257.4564621,
-      23.9
-     ],
-     [
-      1790316157.4564621,
+      1789943300,
       25.9
      ],
      [
-      1790317057.4564621,
-      28.0
+      1789944200,
+      29.4
      ],
      [
-      1790317957.4564621,
-      30.1
+      1789945100,
+      33.1
      ],
      [
-      1790318857.4564621,
-      32.1
+      1789946000,
+      36.7
      ],
      [
-      1790319757.4564621,
-      34.2
+      1789946900,
+      40.4
      ],
      [
-      1790320657.4564621,
-      36.3
+      1789947800,
+      44.1
      ],
      [
-      1790321557.4564621,
-      38.4
+      1789948700,
+      47.8
      ],
      [
-      1790322457.4564621,
-      2.0
+      1789949600,
+      51.6
      ],
      [
-      1790323357.4564621,
-      4.5
+      1789950500,
+      55.4
      ],
      [
-      1790324257.4564621,
-      7.0
+      1789951400,
+      59.2
      ],
      [
-      1790325157.4564621,
-      9.6
+      1789952300,
+      63.1
      ],
      [
-      1790326057.4564621,
-      12.3
+      1789953200,
+      66.9
      ],
      [
-      1790326957.4564621,
-      15.1
+      1789954100,
+      0
      ],
      [
-      1790327857.4564621,
-      17.9
+      1789955000,
+      3
      ],
      [
-      1790328757.4564621,
-      20.8
+      1789955900,
+      6.4
      ],
      [
-      1790329657.4564621,
-      23.6
+      1789956800,
+      9.9
      ],
      [
-      1790330557.4564621,
-      26.6
+      1789957700,
+      13.6
      ],
      [
-      1790331457.4564621,
-      29.5
+      1789958600,
+      17.4
      ],
      [
-      1790332357.4564621,
-      32.5
+      1789959500,
+      21.3
      ],
      [
-      1790333257.4564621,
-      35.5
+      1789960400,
+      25.2
      ],
      [
-      1790334157.4564621,
-      38.5
+      1789961300,
+      29.1
      ],
      [
-      1790335057.4564621,
-      41.5
+      1789962200,
+      33.2
      ],
      [
-      1790335957.4564621,
-      44.6
+      1789963100,
+      37.2
      ],
      [
-      1790336857.4564621,
-      47.7
+      1789964000,
+      41.3
      ],
      [
-      1790337757.4564621,
-      50.8
+      1789964900,
+      45.5
      ],
      [
-      1790338657.4564621,
-      53.9
-     ],
-     [
-      1790339557.4564621,
-      57.0
-     ],
-     [
-      1790340457.4564621,
-      2.0
-     ],
-     [
-      1790341357.4564621,
-      4.5
-     ],
-     [
-      1790342257.4564621,
-      7.0
-     ],
-     [
-      1790343157.4564621,
-      9.6
-     ],
-     [
-      1790344057.4564621,
-      12.3
-     ],
-     [
-      1790344957.4564621,
-      15.1
-     ],
-     [
-      1790345857.4564621,
-      17.9
-     ],
-     [
-      1790346757.4564621,
-      20.7
-     ],
-     [
-      1790347657.4564621,
-      23.6
-     ],
-     [
-      1790348557.4564621,
-      26.5
-     ],
-     [
-      1790349457.4564621,
-      29.5
-     ],
-     [
-      1790350357.4564621,
-      32.5
-     ],
-     [
-      1790351257.4564621,
-      35.5
-     ],
-     [
-      1790352157.4564621,
-      38.5
-     ],
-     [
-      1790353057.4564621,
-      41.5
-     ],
-     [
-      1790353957.4564621,
-      44.6
-     ],
-     [
-      1790354857.4564621,
-      47.7
-     ],
-     [
-      1790355757.4564621,
-      50.8
-     ],
-     [
-      1790356657.4564621,
-      53.9
-     ],
-     [
-      1790357557.4564621,
-      57.0
-     ],
-     [
-      1790358457.4564621,
-      4.3
-     ],
-     [
-      1790359357.4564621,
-      9.4
-     ],
-     [
-      1790360257.4564621,
-      14.7
-     ],
-     [
-      1790361157.4564621,
-      20.3
-     ],
-     [
-      1790362057.4564621,
-      25.9
-     ],
-     [
-      1790362957.4564621,
-      31.7
-     ],
-     [
-      1790363857.4564621,
-      37.6
-     ],
-     [
-      1790364757.4564621,
-      43.6
-     ],
-     [
-      1790365657.4564621,
+      1789965800,
       49.7
      ],
      [
-      1790366557.4564621,
+      1789966700,
+      53.9
+     ],
+     [
+      1789967600,
+      58.1
+     ],
+     [
+      1789968500,
+      62.4
+     ],
+     [
+      1789969400,
+      66.7
+     ],
+     [
+      1789970300,
+      71
+     ],
+     [
+      1789971200,
+      75.4
+     ],
+     [
+      1789972100,
+      0
+     ],
+     [
+      1789973000,
+      2.8
+     ],
+     [
+      1789973900,
+      6
+     ],
+     [
+      1789974800,
+      9.4
+     ],
+     [
+      1789975700,
+      12.9
+     ],
+     [
+      1789976600,
+      16.5
+     ],
+     [
+      1789977500,
+      20.1
+     ],
+     [
+      1789978400,
+      23.8
+     ],
+     [
+      1789979300,
+      27.6
+     ],
+     [
+      1789980200,
+      31.4
+     ],
+     [
+      1789981100,
+      35.2
+     ],
+     [
+      1789982000,
+      39.1
+     ],
+     [
+      1789982900,
+      43
+     ],
+     [
+      1789983800,
+      47
+     ],
+     [
+      1789984700,
+      51
+     ],
+     [
+      1789985600,
+      55
+     ],
+     [
+      1789986500,
+      59
+     ],
+     [
+      1789987400,
+      63.1
+     ],
+     [
+      1789988300,
+      67.2
+     ],
+     [
+      1789989200,
+      71.3
+     ],
+     [
+      1789990100,
+      0.1
+     ],
+     [
+      1789991000,
+      4.5
+     ],
+     [
+      1789991900,
+      9.6
+     ],
+     [
+      1789992800,
+      14.9
+     ],
+     [
+      1789993700,
+      20.4
+     ],
+     [
+      1789994600,
+      26.1
+     ],
+     [
+      1789995500,
+      31.9
+     ],
+     [
+      1789996400,
+      37.7
+     ],
+     [
+      1789997300,
+      43.7
+     ],
+     [
+      1789998200,
+      49.7
+     ],
+     [
+      1789999100,
       55.8
      ],
      [
-      1790367457.4564621,
-      62.0
+      1790000000,
+      62
      ]
     ],
     "latest": {
-     "t": 1790367457.4564621,
-     "pct": 62.0,
-     "resets_at": 1790375588
+     "t": 1790000000,
+     "pct": 62,
+     "resets_at": 1790008084
     },
     "burn": {
-     "rate_per_hour": 23.68,
-     "eta": 1790373234,
+     "rate_per_hour": 23.57,
+     "eta": 1790005803,
      "before_reset": true,
      "at_reset_pct": null,
-     "text": "at this rate: 100% Today at 5:53pm"
+     "text": "at this rate: 100% Today at 11:50am"
     }
    },
    "claude.monthly": {
     "provider": "claude",
     "points": [
      [
-      1790281957.4564621,
-      87.0
+      1789913600,
+      86.1
      ],
      [
-      1790282857.4564621,
-      87.0
+      1789914500,
+      86.2
      ],
      [
-      1790283757.4564621,
+      1789915400,
+      86.2
+     ],
+     [
+      1789916300,
+      86.3
+     ],
+     [
+      1789917200,
+      86.3
+     ],
+     [
+      1789918100,
+      86.4
+     ],
+     [
+      1789919000,
+      86.4
+     ],
+     [
+      1789919900,
+      86.5
+     ],
+     [
+      1789920800,
+      86.5
+     ],
+     [
+      1789921700,
+      86.6
+     ],
+     [
+      1789922600,
+      86.6
+     ],
+     [
+      1789923500,
+      86.7
+     ],
+     [
+      1789924400,
+      86.7
+     ],
+     [
+      1789925300,
+      86.8
+     ],
+     [
+      1789926200,
+      86.8
+     ],
+     [
+      1789927100,
+      86.9
+     ],
+     [
+      1789928000,
+      86.9
+     ],
+     [
+      1789928900,
+      87
+     ],
+     [
+      1789929800,
+      87
+     ],
+     [
+      1789930700,
       87.1
      ],
      [
-      1790284657.4564621,
+      1789931600,
       87.1
      ],
      [
-      1790285557.4564621,
+      1789932500,
       87.2
      ],
      [
-      1790286457.4564621,
+      1789933400,
       87.2
      ],
      [
-      1790287357.4564621,
-      87.2
-     ],
-     [
-      1790288257.4564621,
+      1789934300,
       87.3
      ],
      [
-      1790289157.4564621,
+      1789935200,
       87.3
      ],
      [
-      1790290057.4564621,
+      1789936100,
       87.4
      ],
      [
-      1790290957.4564621,
+      1789937000,
       87.4
      ],
      [
-      1790291857.4564621,
+      1789937900,
       87.5
      ],
      [
-      1790292757.4564621,
+      1789938800,
       87.5
      ],
      [
-      1790293657.4564621,
-      87.5
-     ],
-     [
-      1790294557.4564621,
+      1789939700,
       87.6
      ],
      [
-      1790295457.4564621,
+      1789940600,
       87.6
      ],
      [
-      1790296357.4564621,
+      1789941500,
       87.7
      ],
      [
-      1790297257.4564621,
+      1789942400,
       87.7
      ],
      [
-      1790298157.4564621,
+      1789943300,
       87.8
      ],
      [
-      1790299057.4564621,
+      1789944200,
       87.8
      ],
      [
-      1790299957.4564621,
-      87.8
-     ],
-     [
-      1790300857.4564621,
+      1789945100,
       87.9
      ],
      [
-      1790301757.4564621,
+      1789946000,
       87.9
      ],
      [
-      1790302657.4564621,
-      88.0
+      1789946900,
+      88
      ],
      [
-      1790303557.4564621,
-      88.0
+      1789947800,
+      88
      ],
      [
-      1790304457.4564621,
-      88.0
-     ],
-     [
-      1790305357.4564621,
+      1789948700,
       88.1
      ],
      [
-      1790306257.4564621,
+      1789949600,
       88.1
      ],
      [
-      1790307157.4564621,
+      1789950500,
       88.2
      ],
      [
-      1790308057.4564621,
+      1789951400,
       88.2
      ],
      [
-      1790308957.4564621,
+      1789952300,
       88.3
      ],
      [
-      1790309857.4564621,
+      1789953200,
       88.3
      ],
      [
-      1790310757.4564621,
-      88.3
-     ],
-     [
-      1790311657.4564621,
+      1789954100,
       88.4
      ],
      [
-      1790312557.4564621,
-      88.4
-     ],
-     [
-      1790313457.4564621,
+      1789955000,
       88.5
      ],
      [
-      1790314357.4564621,
+      1789955900,
       88.5
      ],
      [
-      1790315257.4564621,
+      1789956800,
       88.6
      ],
      [
-      1790316157.4564621,
+      1789957700,
       88.6
      ],
      [
-      1790317057.4564621,
-      88.6
-     ],
-     [
-      1790317957.4564621,
+      1789958600,
       88.7
      ],
      [
-      1790318857.4564621,
+      1789959500,
       88.7
      ],
      [
-      1790319757.4564621,
+      1789960400,
       88.8
      ],
      [
-      1790320657.4564621,
+      1789961300,
       88.8
      ],
      [
-      1790321557.4564621,
-      88.8
-     ],
-     [
-      1790322457.4564621,
+      1789962200,
       88.9
      ],
      [
-      1790323357.4564621,
+      1789963100,
       88.9
      ],
      [
-      1790324257.4564621,
-      89.0
+      1789964000,
+      89
      ],
      [
-      1790325157.4564621,
-      89.0
+      1789964900,
+      89
      ],
      [
-      1790326057.4564621,
+      1789965800,
       89.1
      ],
      [
-      1790326957.4564621,
+      1789966700,
       89.1
      ],
      [
-      1790327857.4564621,
-      89.1
-     ],
-     [
-      1790328757.4564621,
+      1789967600,
       89.2
      ],
      [
-      1790329657.4564621,
+      1789968500,
       89.2
      ],
      [
-      1790330557.4564621,
+      1789969400,
       89.3
      ],
      [
-      1790331457.4564621,
+      1789970300,
       89.3
      ],
      [
-      1790332357.4564621,
+      1789971200,
       89.4
      ],
      [
-      1790333257.4564621,
+      1789972100,
       89.4
      ],
      [
-      1790334157.4564621,
-      89.4
-     ],
-     [
-      1790335057.4564621,
+      1789973000,
       89.5
      ],
      [
-      1790335957.4564621,
+      1789973900,
       89.5
      ],
      [
-      1790336857.4564621,
+      1789974800,
       89.6
      ],
      [
-      1790337757.4564621,
+      1789975700,
       89.6
      ],
      [
-      1790338657.4564621,
-      89.6
-     ],
-     [
-      1790339557.4564621,
+      1789976600,
       89.7
      ],
      [
-      1790340457.4564621,
+      1789977500,
       89.7
      ],
      [
-      1790341357.4564621,
+      1789978400,
       89.8
      ],
      [
-      1790342257.4564621,
+      1789979300,
       89.8
      ],
      [
-      1790343157.4564621,
+      1789980200,
       89.9
      ],
      [
-      1790344057.4564621,
+      1789981100,
       89.9
      ],
      [
-      1790344957.4564621,
-      89.9
+      1789982000,
+      90
      ],
      [
-      1790345857.4564621,
-      90.0
+      1789982900,
+      90
      ],
      [
-      1790346757.4564621,
-      90.0
-     ],
-     [
-      1790347657.4564621,
+      1789983800,
       90.1
      ],
      [
-      1790348557.4564621,
+      1789984700,
       90.1
      ],
      [
-      1790349457.4564621,
+      1789985600,
       90.2
      ],
      [
-      1790350357.4564621,
+      1789986500,
       90.2
      ],
      [
-      1790351257.4564621,
-      90.2
-     ],
-     [
-      1790352157.4564621,
+      1789987400,
       90.3
      ],
      [
-      1790353057.4564621,
+      1789988300,
       90.3
      ],
      [
-      1790353957.4564621,
+      1789989200,
       90.4
      ],
      [
-      1790354857.4564621,
+      1789990100,
       90.4
      ],
      [
-      1790355757.4564621,
+      1789991000,
       90.5
      ],
      [
-      1790356657.4564621,
+      1789991900,
       90.5
      ],
      [
-      1790357557.4564621,
-      90.5
-     ],
-     [
-      1790358457.4564621,
+      1789992800,
       90.6
      ],
      [
-      1790359357.4564621,
+      1789993700,
       90.6
      ],
      [
-      1790360257.4564621,
+      1789994600,
       90.7
      ],
      [
-      1790361157.4564621,
+      1789995500,
       90.7
      ],
      [
-      1790362057.4564621,
-      90.7
-     ],
-     [
-      1790362957.4564621,
+      1789996400,
       90.8
      ],
      [
-      1790363857.4564621,
+      1789997300,
       90.8
      ],
      [
-      1790364757.4564621,
+      1789998200,
       90.9
      ],
      [
-      1790365657.4564621,
+      1789999100,
       90.9
      ],
      [
-      1790366557.4564621,
-      91.0
-     ],
-     [
-      1790367457.4564621,
-      91.0
+      1790000000,
+      91
      ]
     ],
     "latest": {
-     "t": 1790367457.4564621,
-     "pct": 91.0,
+     "t": 1790000000,
+     "pct": 91,
      "resets_at": 1790827200
     },
     "burn": {
-     "rate_per_hour": 0.17,
-     "eta": 1790554380,
+     "rate_per_hour": 0.2,
+     "eta": 1790162000,
      "before_reset": true,
      "at_reset_pct": null,
-     "text": "at this rate: 100% Sunday at 8:13pm"
+     "text": "at this rate: 100% Wednesday at 7:13am"
     }
    },
    "claude.seven_day": {
     "provider": "claude",
     "points": [
      [
-      1790281957.4564621,
+      1789913600,
+      13.4
+     ],
+     [
+      1789914500,
       13.6
      ],
      [
-      1790282857.4564621,
+      1789915400,
       13.8
      ],
      [
-      1790283757.4564621,
+      1789916300,
       13.9
      ],
      [
-      1790284657.4564621,
+      1789917200,
       14.1
      ],
      [
-      1790285557.4564621,
+      1789918100,
       14.3
      ],
      [
-      1790286457.4564621,
+      1789919000,
       14.5
      ],
      [
-      1790287357.4564621,
+      1789919900,
       14.6
      ],
      [
-      1790288257.4564621,
+      1789920800,
       14.8
      ],
      [
-      1790289157.4564621,
-      15.0
+      1789921700,
+      15
      ],
      [
-      1790290057.4564621,
+      1789922600,
       15.2
      ],
      [
-      1790290957.4564621,
+      1789923500,
       15.3
      ],
      [
-      1790291857.4564621,
+      1789924400,
       15.5
      ],
      [
-      1790292757.4564621,
+      1789925300,
       15.7
      ],
      [
-      1790293657.4564621,
+      1789926200,
       15.9
      ],
      [
-      1790294557.4564621,
+      1789927100,
       16.1
      ],
      [
-      1790295457.4564621,
+      1789928000,
       16.2
      ],
      [
-      1790296357.4564621,
+      1789928900,
       16.4
      ],
      [
-      1790297257.4564621,
+      1789929800,
       16.6
      ],
      [
-      1790298157.4564621,
+      1789930700,
       16.8
      ],
      [
-      1790299057.4564621,
-      17.0
+      1789931600,
+      17
      ],
      [
-      1790299957.4564621,
+      1789932500,
       17.1
      ],
      [
-      1790300857.4564621,
+      1789933400,
       17.3
      ],
      [
-      1790301757.4564621,
+      1789934300,
       17.5
      ],
      [
-      1790302657.4564621,
+      1789935200,
       17.7
      ],
      [
-      1790303557.4564621,
+      1789936100,
       17.9
      ],
      [
-      1790304457.4564621,
-      18.0
+      1789937000,
+      18
      ],
      [
-      1790305357.4564621,
+      1789937900,
       18.2
      ],
      [
-      1790306257.4564621,
+      1789938800,
       18.4
      ],
      [
-      1790307157.4564621,
+      1789939700,
       18.6
      ],
      [
-      1790308057.4564621,
+      1789940600,
       18.8
      ],
      [
-      1790308957.4564621,
+      1789941500,
       18.9
      ],
      [
-      1790309857.4564621,
+      1789942400,
       19.1
      ],
      [
-      1790310757.4564621,
+      1789943300,
       19.3
      ],
      [
-      1790311657.4564621,
+      1789944200,
       19.5
      ],
      [
-      1790312557.4564621,
+      1789945100,
       19.7
      ],
      [
-      1790313457.4564621,
+      1789946000,
       19.8
      ],
      [
-      1790314357.4564621,
-      20.0
+      1789946900,
+      20
      ],
      [
-      1790315257.4564621,
+      1789947800,
       20.2
      ],
      [
-      1790316157.4564621,
+      1789948700,
       20.4
      ],
      [
-      1790317057.4564621,
+      1789949600,
       20.6
      ],
      [
-      1790317957.4564621,
+      1789950500,
       20.8
      ],
      [
-      1790318857.4564621,
+      1789951400,
       20.9
      ],
      [
-      1790319757.4564621,
+      1789952300,
       21.1
      ],
      [
-      1790320657.4564621,
+      1789953200,
       21.3
      ],
      [
-      1790321557.4564621,
+      1789954100,
       21.5
      ],
      [
-      1790322457.4564621,
+      1789955000,
       21.7
      ],
      [
-      1790323357.4564621,
+      1789955900,
       21.9
      ],
      [
-      1790324257.4564621,
-      22.0
+      1789956800,
+      22
      ],
      [
-      1790325157.4564621,
+      1789957700,
       22.2
      ],
      [
-      1790326057.4564621,
+      1789958600,
       22.4
      ],
      [
-      1790326957.4564621,
+      1789959500,
       22.6
      ],
      [
-      1790327857.4564621,
+      1789960400,
       22.8
      ],
      [
-      1790328757.4564621,
-      23.0
+      1789961300,
+      23
      ],
      [
-      1790329657.4564621,
+      1789962200,
       23.1
      ],
      [
-      1790330557.4564621,
+      1789963100,
       23.3
      ],
      [
-      1790331457.4564621,
+      1789964000,
       23.5
      ],
      [
-      1790332357.4564621,
+      1789964900,
       23.7
      ],
      [
-      1790333257.4564621,
+      1789965800,
       23.9
      ],
      [
-      1790334157.4564621,
+      1789966700,
       24.1
      ],
      [
-      1790335057.4564621,
+      1789967600,
       24.3
      ],
      [
-      1790335957.4564621,
+      1789968500,
       24.4
      ],
      [
-      1790336857.4564621,
+      1789969400,
       24.6
      ],
      [
-      1790337757.4564621,
+      1789970300,
       24.8
      ],
      [
-      1790338657.4564621,
-      25.0
+      1789971200,
+      25
      ],
      [
-      1790339557.4564621,
+      1789972100,
       25.2
      ],
      [
-      1790340457.4564621,
+      1789973000,
       25.4
      ],
      [
-      1790341357.4564621,
+      1789973900,
       25.6
      ],
      [
-      1790342257.4564621,
+      1789974800,
       25.7
      ],
      [
-      1790343157.4564621,
+      1789975700,
       25.9
      ],
      [
-      1790344057.4564621,
+      1789976600,
       26.1
      ],
      [
-      1790344957.4564621,
+      1789977500,
       26.3
      ],
      [
-      1790345857.4564621,
+      1789978400,
       26.5
      ],
      [
-      1790346757.4564621,
+      1789979300,
       26.7
      ],
      [
-      1790347657.4564621,
+      1789980200,
       26.9
      ],
      [
-      1790348557.4564621,
-      27.0
+      1789981100,
+      27
      ],
      [
-      1790349457.4564621,
+      1789982000,
       27.2
      ],
      [
-      1790350357.4564621,
+      1789982900,
       27.4
      ],
      [
-      1790351257.4564621,
+      1789983800,
       27.6
      ],
      [
-      1790352157.4564621,
+      1789984700,
       27.8
      ],
      [
-      1790353057.4564621,
-      28.0
+      1789985600,
+      28
      ],
      [
-      1790353957.4564621,
+      1789986500,
       28.2
      ],
      [
-      1790354857.4564621,
+      1789987400,
       28.4
      ],
      [
-      1790355757.4564621,
+      1789988300,
       28.5
      ],
      [
-      1790356657.4564621,
+      1789989200,
       28.7
      ],
      [
-      1790357557.4564621,
+      1789990100,
       28.9
      ],
      [
-      1790358457.4564621,
+      1789991000,
       29.1
      ],
      [
-      1790359357.4564621,
+      1789991900,
       29.3
      ],
      [
-      1790360257.4564621,
+      1789992800,
       29.5
      ],
      [
-      1790361157.4564621,
+      1789993700,
       29.7
      ],
      [
-      1790362057.4564621,
+      1789994600,
       29.9
      ],
      [
-      1790362957.4564621,
+      1789995500,
       30.1
      ],
      [
-      1790363857.4564621,
+      1789996400,
       30.2
      ],
      [
-      1790364757.4564621,
+      1789997300,
       30.4
      ],
      [
-      1790365657.4564621,
+      1789998200,
       30.6
      ],
      [
-      1790366557.4564621,
+      1789999100,
       30.8
      ],
      [
-      1790367457.4564621,
-      31.0
+      1790000000,
+      31
      ]
     ],
     "latest": {
-     "t": 1790367457.4564621,
-     "pct": 31.0,
-     "resets_at": 1790810288
+     "t": 1790000000,
+     "pct": 31,
+     "resets_at": 1790442784
     },
     "burn": {
      "rate_per_hour": 0.73,
-     "eta": 1790706184,
+     "eta": 1790338727,
      "before_reset": true,
      "at_reset_pct": null,
-     "text": "at this rate: 100% Tuesday at 2:23pm"
+     "text": "at this rate: 100% Friday at 8:18am"
     }
    },
    "claude.seven_day_sonnet": {
     "provider": "claude",
     "points": [
      [
-      1790281957.4564621,
+      1789913600,
+      5.2
+     ],
+     [
+      1789914500,
       5.3
      ],
      [
-      1790282857.4564621,
+      1789915400,
       5.3
      ],
      [
-      1790283757.4564621,
+      1789916300,
       5.4
      ],
      [
-      1790284657.4564621,
+      1789917200,
       5.5
      ],
      [
-      1790285557.4564621,
+      1789918100,
       5.5
      ],
      [
-      1790286457.4564621,
+      1789919000,
       5.6
      ],
      [
-      1790287357.4564621,
+      1789919900,
       5.7
      ],
      [
-      1790288257.4564621,
+      1789920800,
       5.7
      ],
      [
-      1790289157.4564621,
+      1789921700,
       5.8
      ],
      [
-      1790290057.4564621,
+      1789922600,
       5.9
      ],
      [
-      1790290957.4564621,
+      1789923500,
       5.9
      ],
      [
-      1790291857.4564621,
-      6.0
+      1789924400,
+      6
      ],
      [
-      1790292757.4564621,
+      1789925300,
       6.1
      ],
      [
-      1790293657.4564621,
+      1789926200,
       6.1
      ],
      [
-      1790294557.4564621,
+      1789927100,
       6.2
      ],
      [
-      1790295457.4564621,
+      1789928000,
       6.3
      ],
      [
-      1790296357.4564621,
+      1789928900,
       6.4
      ],
      [
-      1790297257.4564621,
+      1789929800,
       6.4
      ],
      [
-      1790298157.4564621,
+      1789930700,
       6.5
      ],
      [
-      1790299057.4564621,
+      1789931600,
       6.6
      ],
      [
-      1790299957.4564621,
+      1789932500,
       6.6
      ],
      [
-      1790300857.4564621,
+      1789933400,
       6.7
      ],
      [
-      1790301757.4564621,
+      1789934300,
       6.8
      ],
      [
-      1790302657.4564621,
+      1789935200,
       6.8
      ],
      [
-      1790303557.4564621,
+      1789936100,
       6.9
      ],
      [
-      1790304457.4564621,
-      7.0
+      1789937000,
+      7
      ],
      [
-      1790305357.4564621,
-      7.0
-     ],
-     [
-      1790306257.4564621,
+      1789937900,
       7.1
      ],
      [
-      1790307157.4564621,
+      1789938800,
+      7.1
+     ],
+     [
+      1789939700,
       7.2
      ],
      [
-      1790308057.4564621,
+      1789940600,
       7.3
      ],
      [
-      1790308957.4564621,
+      1789941500,
       7.3
      ],
      [
-      1790309857.4564621,
+      1789942400,
       7.4
      ],
      [
-      1790310757.4564621,
+      1789943300,
       7.5
      ],
      [
-      1790311657.4564621,
+      1789944200,
       7.5
      ],
      [
-      1790312557.4564621,
+      1789945100,
       7.6
      ],
      [
-      1790313457.4564621,
+      1789946000,
       7.7
      ],
      [
-      1790314357.4564621,
+      1789946900,
       7.8
      ],
      [
-      1790315257.4564621,
+      1789947800,
       7.8
      ],
      [
-      1790316157.4564621,
+      1789948700,
       7.9
      ],
      [
-      1790317057.4564621,
-      8.0
+      1789949600,
+      8
      ],
      [
-      1790317957.4564621,
-      8.0
+      1789950500,
+      8
      ],
      [
-      1790318857.4564621,
+      1789951400,
       8.1
      ],
      [
-      1790319757.4564621,
+      1789952300,
       8.2
      ],
      [
-      1790320657.4564621,
+      1789953200,
       8.2
      ],
      [
-      1790321557.4564621,
+      1789954100,
       8.3
      ],
      [
-      1790322457.4564621,
+      1789955000,
       8.4
      ],
      [
-      1790323357.4564621,
+      1789955900,
       8.5
      ],
      [
-      1790324257.4564621,
+      1789956800,
       8.5
      ],
      [
-      1790325157.4564621,
+      1789957700,
       8.6
      ],
      [
-      1790326057.4564621,
+      1789958600,
       8.7
      ],
      [
-      1790326957.4564621,
+      1789959500,
       8.7
      ],
      [
-      1790327857.4564621,
+      1789960400,
       8.8
      ],
      [
-      1790328757.4564621,
+      1789961300,
       8.9
      ],
      [
-      1790329657.4564621,
-      9.0
+      1789962200,
+      9
      ],
      [
-      1790330557.4564621,
-      9.0
+      1789963100,
+      9
      ],
      [
-      1790331457.4564621,
+      1789964000,
       9.1
      ],
      [
-      1790332357.4564621,
+      1789964900,
       9.2
      ],
      [
-      1790333257.4564621,
+      1789965800,
       9.2
      ],
      [
-      1790334157.4564621,
+      1789966700,
       9.3
      ],
      [
-      1790335057.4564621,
+      1789967600,
       9.4
      ],
      [
-      1790335957.4564621,
+      1789968500,
       9.5
      ],
      [
-      1790336857.4564621,
+      1789969400,
       9.5
      ],
      [
-      1790337757.4564621,
+      1789970300,
       9.6
      ],
      [
-      1790338657.4564621,
+      1789971200,
       9.7
      ],
      [
-      1790339557.4564621,
+      1789972100,
       9.7
      ],
      [
-      1790340457.4564621,
+      1789973000,
       9.8
      ],
      [
-      1790341357.4564621,
+      1789973900,
       9.9
      ],
      [
-      1790342257.4564621,
-      10.0
+      1789974800,
+      10
      ],
      [
-      1790343157.4564621,
-      10.0
+      1789975700,
+      10
      ],
      [
-      1790344057.4564621,
+      1789976600,
       10.1
      ],
      [
-      1790344957.4564621,
+      1789977500,
       10.2
      ],
      [
-      1790345857.4564621,
+      1789978400,
       10.3
      ],
      [
-      1790346757.4564621,
+      1789979300,
       10.3
      ],
      [
-      1790347657.4564621,
+      1789980200,
       10.4
      ],
      [
-      1790348557.4564621,
+      1789981100,
       10.5
      ],
      [
-      1790349457.4564621,
+      1789982000,
       10.5
      ],
      [
-      1790350357.4564621,
+      1789982900,
       10.6
      ],
      [
-      1790351257.4564621,
+      1789983800,
       10.7
      ],
      [
-      1790352157.4564621,
+      1789984700,
       10.8
      ],
      [
-      1790353057.4564621,
+      1789985600,
       10.8
      ],
      [
-      1790353957.4564621,
+      1789986500,
       10.9
      ],
      [
-      1790354857.4564621,
-      11.0
+      1789987400,
+      11
      ],
      [
-      1790355757.4564621,
+      1789988300,
       11.1
      ],
      [
-      1790356657.4564621,
+      1789989200,
       11.1
      ],
      [
-      1790357557.4564621,
+      1789990100,
       11.2
      ],
      [
-      1790358457.4564621,
+      1789991000,
       11.3
      ],
      [
-      1790359357.4564621,
+      1789991900,
       11.3
      ],
      [
-      1790360257.4564621,
+      1789992800,
       11.4
      ],
      [
-      1790361157.4564621,
+      1789993700,
       11.5
      ],
      [
-      1790362057.4564621,
+      1789994600,
       11.6
      ],
      [
-      1790362957.4564621,
+      1789995500,
       11.6
      ],
      [
-      1790363857.4564621,
+      1789996400,
       11.7
      ],
      [
-      1790364757.4564621,
+      1789997300,
       11.8
      ],
      [
-      1790365657.4564621,
+      1789998200,
       11.9
      ],
      [
-      1790366557.4564621,
+      1789999100,
       11.9
      ],
      [
-      1790367457.4564621,
-      12.0
+      1790000000,
+      12
      ]
     ],
     "latest": {
-     "t": 1790367457.4564621,
-     "pct": 12.0,
-     "resets_at": 1790810288
+     "t": 1790000000,
+     "pct": 12,
+     "resets_at": 1790442784
     },
     "burn": {
      "rate_per_hour": 0.29,
@@ -2462,400 +2454,404 @@
     "provider": "codex",
     "points": [
      [
-      1790281957.4564621,
-      1.3
+      1789913600,
+      37
      ],
      [
-      1790282857.4564621,
-      3.6
+      1789914500,
+      2
      ],
      [
-      1790283757.4564621,
-      5.9
+      1789915400,
+      5
      ],
      [
-      1790284657.4564621,
-      8.4
+      1789916300,
+      8.3
      ],
      [
-      1790285557.4564621,
-      10.9
+      1789917200,
+      11.7
      ],
      [
-      1790286457.4564621,
-      13.4
+      1789918100,
+      15.1
      ],
      [
-      1790287357.4564621,
-      16.1
-     ],
-     [
-      1790288257.4564621,
+      1789919000,
       18.7
      ],
      [
-      1790289157.4564621,
-      21.4
+      1789919900,
+      22.3
      ],
      [
-      1790290057.4564621,
-      24.1
+      1789920800,
+      25.9
      ],
      [
-      1790290957.4564621,
-      26.9
-     ],
-     [
-      1790291857.4564621,
-      29.7
-     ],
-     [
-      1790292757.4564621,
-      32.5
-     ],
-     [
-      1790293657.4564621,
-      35.3
-     ],
-     [
-      1790294557.4564621,
-      38.1
-     ],
-     [
-      1790295457.4564621,
-      41.0
-     ],
-     [
-      1790296357.4564621,
-      43.9
-     ],
-     [
-      1790297257.4564621,
-      46.8
-     ],
-     [
-      1790298157.4564621,
-      49.7
-     ],
-     [
-      1790299057.4564621,
-      52.6
-     ],
-     [
-      1790299957.4564621,
-      1.0
-     ],
-     [
-      1790300857.4564621,
-      2.6
-     ],
-     [
-      1790301757.4564621,
-      4.4
-     ],
-     [
-      1790302657.4564621,
-      6.2
-     ],
-     [
-      1790303557.4564621,
-      8.1
-     ],
-     [
-      1790304457.4564621,
-      10.0
-     ],
-     [
-      1790305357.4564621,
-      11.9
-     ],
-     [
-      1790306257.4564621,
-      13.9
-     ],
-     [
-      1790307157.4564621,
-      15.9
-     ],
-     [
-      1790308057.4564621,
-      17.9
-     ],
-     [
-      1790308957.4564621,
-      20.0
-     ],
-     [
-      1790309857.4564621,
-      22.0
-     ],
-     [
-      1790310757.4564621,
-      24.1
-     ],
-     [
-      1790311657.4564621,
-      26.2
-     ],
-     [
-      1790312557.4564621,
-      28.3
-     ],
-     [
-      1790313457.4564621,
-      30.4
-     ],
-     [
-      1790314357.4564621,
-      32.6
-     ],
-     [
-      1790315257.4564621,
-      34.7
-     ],
-     [
-      1790316157.4564621,
-      36.9
-     ],
-     [
-      1790317057.4564621,
-      39.0
-     ],
-     [
-      1790317957.4564621,
-      1.5
-     ],
-     [
-      1790318857.4564621,
-      3.9
-     ],
-     [
-      1790319757.4564621,
-      6.5
-     ],
-     [
-      1790320657.4564621,
-      9.2
-     ],
-     [
-      1790321557.4564621,
-      12.0
-     ],
-     [
-      1790322457.4564621,
-      14.8
-     ],
-     [
-      1790323357.4564621,
-      17.7
-     ],
-     [
-      1790324257.4564621,
-      20.6
-     ],
-     [
-      1790325157.4564621,
-      23.6
-     ],
-     [
-      1790326057.4564621,
-      26.6
-     ],
-     [
-      1790326957.4564621,
+      1789921700,
       29.6
      ],
      [
-      1790327857.4564621,
-      32.7
+      1789922600,
+      33.4
      ],
      [
-      1790328757.4564621,
-      35.8
+      1789923500,
+      37.1
      ],
      [
-      1790329657.4564621,
-      38.9
+      1789924400,
+      41
      ],
      [
-      1790330557.4564621,
-      42.0
+      1789925300,
+      44.8
      ],
      [
-      1790331457.4564621,
-      45.2
+      1789926200,
+      48.7
      ],
      [
-      1790332357.4564621,
-      48.3
+      1789927100,
+      52.6
      ],
      [
-      1790333257.4564621,
-      51.5
+      1789928000,
+      56.5
      ],
      [
-      1790334157.4564621,
-      54.7
+      1789928900,
+      60.5
      ],
      [
-      1790335057.4564621,
-      58.0
+      1789929800,
+      64.5
      ],
      [
-      1790335957.4564621,
-      1.3
+      1789930700,
+      68.5
      ],
      [
-      1790336857.4564621,
-      3.4
+      1789931600,
+      72.5
      ],
      [
-      1790337757.4564621,
-      5.7
+      1789932500,
+      2.5
      ],
      [
-      1790338657.4564621,
-      8.1
+      1789933400,
+      6.3
      ],
      [
-      1790339557.4564621,
-      10.5
+      1789934300,
+      10.3
      ],
      [
-      1790340457.4564621,
-      13.0
+      1789935200,
+      14.5
      ],
      [
-      1790341357.4564621,
-      15.5
+      1789936100,
+      18.7
      ],
      [
-      1790342257.4564621,
-      18.1
+      1789937000,
+      23.1
      ],
      [
-      1790343157.4564621,
-      20.7
+      1789937900,
+      27.6
      ],
      [
-      1790344057.4564621,
-      23.3
+      1789938800,
+      32.1
      ],
      [
-      1790344957.4564621,
-      26.0
+      1789939700,
+      36.7
      ],
      [
-      1790345857.4564621,
-      28.6
+      1789940600,
+      41.3
      ],
      [
-      1790346757.4564621,
-      31.3
+      1789941500,
+      46
      ],
      [
-      1790347657.4564621,
-      34.1
-     ],
-     [
-      1790348557.4564621,
-      36.8
-     ],
-     [
-      1790349457.4564621,
-      39.6
-     ],
-     [
-      1790350357.4564621,
-      42.4
-     ],
-     [
-      1790351257.4564621,
-      45.2
-     ],
-     [
-      1790352157.4564621,
-      48.0
-     ],
-     [
-      1790353057.4564621,
+      1789942400,
       50.8
      ],
      [
-      1790353957.4564621,
-      1.3
+      1789943300,
+      55.5
      ],
      [
-      1790354857.4564621,
-      3.5
+      1789944200,
+      60.3
      ],
      [
-      1790355757.4564621,
-      5.8
+      1789945100,
+      65.2
      ],
      [
-      1790356657.4564621,
-      8.2
+      1789946000,
+      70.1
      ],
      [
-      1790357557.4564621,
-      10.6
+      1789946900,
+      75
      ],
      [
-      1790358457.4564621,
-      13.1
+      1789947800,
+      79.9
      ],
      [
-      1790359357.4564621,
-      15.7
+      1789948700,
+      84.9
      ],
      [
-      1790360257.4564621,
-      18.3
+      1789949600,
+      89.9
      ],
      [
-      1790361157.4564621,
-      20.9
+      1789950500,
+      1.8
      ],
      [
-      1790362057.4564621,
-      23.6
+      1789951400,
+      4.7
      ],
      [
-      1790362957.4564621,
-      26.2
+      1789952300,
+      7.7
      ],
      [
-      1790363857.4564621,
-      28.9
+      1789953200,
+      10.8
      ],
      [
-      1790364757.4564621,
-      31.7
+      1789954100,
+      14
      ],
      [
-      1790365657.4564621,
+      1789955000,
+      17.3
+     ],
+     [
+      1789955900,
+      20.6
+     ],
+     [
+      1789956800,
+      24
+     ],
+     [
+      1789957700,
+      27.4
+     ],
+     [
+      1789958600,
+      30.9
+     ],
+     [
+      1789959500,
       34.4
      ],
      [
-      1790366557.4564621,
+      1789960400,
+      37.9
+     ],
+     [
+      1789961300,
+      41.5
+     ],
+     [
+      1789962200,
+      45.1
+     ],
+     [
+      1789963100,
+      48.7
+     ],
+     [
+      1789964000,
+      52.3
+     ],
+     [
+      1789964900,
+      56
+     ],
+     [
+      1789965800,
+      59.7
+     ],
+     [
+      1789966700,
+      63.4
+     ],
+     [
+      1789967600,
+      67.1
+     ],
+     [
+      1789968500,
+      1.9
+     ],
+     [
+      1789969400,
+      4.9
+     ],
+     [
+      1789970300,
+      8
+     ],
+     [
+      1789971200,
+      11.3
+     ],
+     [
+      1789972100,
+      14.6
+     ],
+     [
+      1789973000,
+      18
+     ],
+     [
+      1789973900,
+      21.5
+     ],
+     [
+      1789974800,
+      25
+     ],
+     [
+      1789975700,
+      28.6
+     ],
+     [
+      1789976600,
+      32.2
+     ],
+     [
+      1789977500,
+      35.9
+     ],
+     [
+      1789978400,
+      39.6
+     ],
+     [
+      1789979300,
+      43.3
+     ],
+     [
+      1789980200,
+      47
+     ],
+     [
+      1789981100,
+      50.8
+     ],
+     [
+      1789982000,
+      54.6
+     ],
+     [
+      1789982900,
+      58.4
+     ],
+     [
+      1789983800,
+      62.3
+     ],
+     [
+      1789984700,
+      66.2
+     ],
+     [
+      1789985600,
+      70.1
+     ],
+     [
+      1789986500,
+      1.4
+     ],
+     [
+      1789987400,
+      3.6
+     ],
+     [
+      1789988300,
+      5.9
+     ],
+     [
+      1789989200,
+      8.3
+     ],
+     [
+      1789990100,
+      10.7
+     ],
+     [
+      1789991000,
+      13.2
+     ],
+     [
+      1789991900,
+      15.8
+     ],
+     [
+      1789992800,
+      18.3
+     ],
+     [
+      1789993700,
+      21
+     ],
+     [
+      1789994600,
+      23.6
+     ],
+     [
+      1789995500,
+      26.3
+     ],
+     [
+      1789996400,
+      29
+     ],
+     [
+      1789997300,
+      31.7
+     ],
+     [
+      1789998200,
+      34.5
+     ],
+     [
+      1789999100,
       37.2
      ],
      [
-      1790367457.4564621,
-      40.0
+      1790000000,
+      40
      ]
     ],
     "latest": {
-     "t": 1790367457.4564621,
-     "pct": 40.0,
-     "resets_at": 1790371328
+     "t": 1790000000,
+     "pct": 40,
+     "resets_at": 1790003824
     },
     "burn": {
-     "rate_per_hour": 10.85,
+     "rate_per_hour": 10.84,
      "eta": null,
      "before_reset": false,
-     "at_reset_pct": 51.7,
+     "at_reset_pct": 51.5,
      "text": "at this rate: ~52% at reset"
     }
    },
@@ -2863,423 +2859,423 @@
     "provider": "codex",
     "points": [
      [
-      1790281957.4564621,
+      1789913600,
+      68.3
+     ],
+     [
+      1789914500,
       68.5
      ],
      [
-      1790282857.4564621,
+      1789915400,
       68.6
      ],
      [
-      1790283757.4564621,
+      1789916300,
       68.8
      ],
      [
-      1790284657.4564621,
-      69.0
+      1789917200,
+      69
      ],
      [
-      1790285557.4564621,
+      1789918100,
       69.1
      ],
      [
-      1790286457.4564621,
+      1789919000,
       69.3
      ],
      [
-      1790287357.4564621,
+      1789919900,
       69.4
      ],
      [
-      1790288257.4564621,
+      1789920800,
       69.6
      ],
      [
-      1790289157.4564621,
+      1789921700,
       69.8
      ],
      [
-      1790290057.4564621,
+      1789922600,
       69.9
      ],
      [
-      1790290957.4564621,
+      1789923500,
       70.1
      ],
      [
-      1790291857.4564621,
+      1789924400,
       70.2
      ],
      [
-      1790292757.4564621,
+      1789925300,
       70.4
      ],
      [
-      1790293657.4564621,
+      1789926200,
       70.6
      ],
      [
-      1790294557.4564621,
+      1789927100,
       70.7
      ],
      [
-      1790295457.4564621,
+      1789928000,
       70.9
      ],
      [
-      1790296357.4564621,
+      1789928900,
       71.1
      ],
      [
-      1790297257.4564621,
+      1789929800,
       71.2
      ],
      [
-      1790298157.4564621,
+      1789930700,
       71.4
      ],
      [
-      1790299057.4564621,
+      1789931600,
       71.5
      ],
      [
-      1790299957.4564621,
+      1789932500,
       71.7
      ],
      [
-      1790300857.4564621,
+      1789933400,
       71.9
      ],
      [
-      1790301757.4564621,
-      72.0
+      1789934300,
+      72
      ],
      [
-      1790302657.4564621,
+      1789935200,
       72.2
      ],
      [
-      1790303557.4564621,
+      1789936100,
       72.4
      ],
      [
-      1790304457.4564621,
+      1789937000,
       72.5
      ],
      [
-      1790305357.4564621,
+      1789937900,
       72.7
      ],
      [
-      1790306257.4564621,
+      1789938800,
       72.9
      ],
      [
-      1790307157.4564621,
-      73.0
+      1789939700,
+      73
      ],
      [
-      1790308057.4564621,
+      1789940600,
       73.2
      ],
      [
-      1790308957.4564621,
+      1789941500,
       73.3
      ],
      [
-      1790309857.4564621,
+      1789942400,
       73.5
      ],
      [
-      1790310757.4564621,
+      1789943300,
       73.7
      ],
      [
-      1790311657.4564621,
+      1789944200,
       73.8
      ],
      [
-      1790312557.4564621,
-      74.0
+      1789945100,
+      74
      ],
      [
-      1790313457.4564621,
+      1789946000,
       74.2
      ],
      [
-      1790314357.4564621,
+      1789946900,
       74.3
      ],
      [
-      1790315257.4564621,
+      1789947800,
       74.5
      ],
      [
-      1790316157.4564621,
+      1789948700,
       74.6
      ],
      [
-      1790317057.4564621,
+      1789949600,
       74.8
      ],
      [
-      1790317957.4564621,
-      75.0
+      1789950500,
+      75
      ],
      [
-      1790318857.4564621,
+      1789951400,
       75.1
      ],
      [
-      1790319757.4564621,
+      1789952300,
       75.3
      ],
      [
-      1790320657.4564621,
+      1789953200,
       75.5
      ],
      [
-      1790321557.4564621,
+      1789954100,
       75.6
      ],
      [
-      1790322457.4564621,
+      1789955000,
       75.8
      ],
      [
-      1790323357.4564621,
-      76.0
+      1789955900,
+      76
      ],
      [
-      1790324257.4564621,
+      1789956800,
       76.1
      ],
      [
-      1790325157.4564621,
+      1789957700,
       76.3
      ],
      [
-      1790326057.4564621,
+      1789958600,
       76.4
      ],
      [
-      1790326957.4564621,
+      1789959500,
       76.6
      ],
      [
-      1790327857.4564621,
+      1789960400,
       76.8
      ],
      [
-      1790328757.4564621,
+      1789961300,
       76.9
      ],
      [
-      1790329657.4564621,
+      1789962200,
       77.1
      ],
      [
-      1790330557.4564621,
+      1789963100,
       77.3
      ],
      [
-      1790331457.4564621,
+      1789964000,
       77.4
      ],
      [
-      1790332357.4564621,
+      1789964900,
       77.6
      ],
      [
-      1790333257.4564621,
+      1789965800,
       77.8
      ],
      [
-      1790334157.4564621,
+      1789966700,
       77.9
      ],
      [
-      1790335057.4564621,
+      1789967600,
       78.1
      ],
      [
-      1790335957.4564621,
+      1789968500,
       78.2
      ],
      [
-      1790336857.4564621,
+      1789969400,
       78.4
      ],
      [
-      1790337757.4564621,
+      1789970300,
       78.6
      ],
      [
-      1790338657.4564621,
+      1789971200,
       78.7
      ],
      [
-      1790339557.4564621,
+      1789972100,
       78.9
      ],
      [
-      1790340457.4564621,
+      1789973000,
       79.1
      ],
      [
-      1790341357.4564621,
+      1789973900,
       79.2
      ],
      [
-      1790342257.4564621,
+      1789974800,
       79.4
      ],
      [
-      1790343157.4564621,
+      1789975700,
       79.6
      ],
      [
-      1790344057.4564621,
+      1789976600,
       79.7
      ],
      [
-      1790344957.4564621,
+      1789977500,
       79.9
      ],
      [
-      1790345857.4564621,
-      80.0
+      1789978400,
+      80
      ],
      [
-      1790346757.4564621,
+      1789979300,
       80.2
      ],
      [
-      1790347657.4564621,
+      1789980200,
       80.4
      ],
      [
-      1790348557.4564621,
+      1789981100,
       80.5
      ],
      [
-      1790349457.4564621,
+      1789982000,
       80.7
      ],
      [
-      1790350357.4564621,
+      1789982900,
       80.9
      ],
      [
-      1790351257.4564621,
-      81.0
+      1789983800,
+      81
      ],
      [
-      1790352157.4564621,
+      1789984700,
       81.2
      ],
      [
-      1790353057.4564621,
+      1789985600,
       81.4
      ],
      [
-      1790353957.4564621,
+      1789986500,
       81.5
      ],
      [
-      1790354857.4564621,
+      1789987400,
       81.7
      ],
      [
-      1790355757.4564621,
+      1789988300,
       81.9
      ],
      [
-      1790356657.4564621,
-      82.0
+      1789989200,
+      82
      ],
      [
-      1790357557.4564621,
+      1789990100,
       82.2
      ],
      [
-      1790358457.4564621,
+      1789991000,
       82.4
      ],
      [
-      1790359357.4564621,
+      1789991900,
       82.5
      ],
      [
-      1790360257.4564621,
+      1789992800,
       82.7
      ],
      [
-      1790361157.4564621,
+      1789993700,
       82.8
      ],
      [
-      1790362057.4564621,
-      83.0
+      1789994600,
+      83
      ],
      [
-      1790362957.4564621,
+      1789995500,
       83.2
      ],
      [
-      1790363857.4564621,
+      1789996400,
       83.3
      ],
      [
-      1790364757.4564621,
+      1789997300,
       83.5
      ],
      [
-      1790365657.4564621,
+      1789998200,
       83.7
      ],
      [
-      1790366557.4564621,
+      1789999100,
       83.8
      ],
      [
-      1790367457.4564621,
-      84.0
+      1790000000,
+      84
      ]
     ],
     "latest": {
-     "t": 1790367457.4564621,
-     "pct": 84.0,
-     "resets_at": 1790468288
+     "t": 1790000000,
+     "pct": 84,
+     "resets_at": 1790100784
     },
     "burn": {
      "rate_per_hour": 0.66,
-     "eta": 1790454730,
+     "eta": 1790087272,
      "before_reset": true,
      "at_reset_pct": null,
-     "text": "at this rate: 100% Tomorrow at 4:32pm"
+     "text": "at this rate: 100% Tomorrow at 10:27am"
     }
    }
   }
  },
  "stats": {
-  "day": "2026-09-25",
+  "day": "2026-09-21",
   "waiting_seconds": 4980,
   "longest_wait_s": 780,
   "answered": 14,
-  "waits": 17,
+  "waits": 16,
   "active": [
    {
     "uid": "DEMO-0001",
-    "since": 1790367217.4564621
+    "since": 1789999760
    },
    {
     "uid": "DEMO-0007",
-    "since": 1790367337.4564621
-   },
-   {
-    "uid": "DEMO-0002",
-    "since": 1790367466.4568458
+    "since": 1789999880
    }
   ]
  }

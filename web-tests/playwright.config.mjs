@@ -6,6 +6,7 @@
 
 import { defineConfig } from '@playwright/test';
 import { executableFor } from './browsers.mjs';
+import { CHROMIUM_MUTE_ARGS } from './audio-mute.mjs';
 
 const wantsHeaded = process.argv.some((a) => a === '--headed' || a === '--ui' || a === '--debug') || !!process.env.PWDEBUG;
 if (wantsHeaded && process.env.OW_ALLOW_HEADED !== '1') {
@@ -14,7 +15,11 @@ if (wantsHeaded && process.env.OW_ALLOW_HEADED !== '1') {
 
 const launch = (name) => {
   const executablePath = executableFor(name);
-  return executablePath ? { executablePath } : {};
+  const opts = executablePath ? { executablePath } : {};
+  // Headless browsers still reach the speakers: mute Chromium outright; every
+  // context also gets the silent AudioContext stub (e2e/fixtures.mjs).
+  if (name === 'chromium') opts.args = [...CHROMIUM_MUTE_ARGS];
+  return opts;
 };
 
 export default defineConfig({

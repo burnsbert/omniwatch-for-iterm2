@@ -24,6 +24,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 import { startMockServer } from './mock-server.mjs';
+import { CHROMIUM_MUTE_ARGS, muteContext } from './audio-mute.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
@@ -122,7 +123,9 @@ const coverage = new Map();
 const browserType = engine === 'webkit' ? webkit : chromium;
 const executablePath = executableFor(browserType);
 console.log(`engine ${engine} (${executablePath || 'playwright default'}); backend ${backendKind}`);
-const browser = await browserType.launch({ headless: true, executablePath });
+// Headless browsers still play sound through the speakers: mute Chromium, and
+// stub WebAudio/<audio> in every context (audio-mute.mjs).
+const browser = await browserType.launch({ headless: true, executablePath, args: engine === 'chromium' ? [...CHROMIUM_MUTE_ARGS] : [] });
 const srv = await startBackend();
 if (srv.ready) console.log(`ready line: ${JSON.stringify({ ...srv.ready, token: `<${srv.ready.token.length} chars>` })}`);
 
@@ -138,7 +141,7 @@ const resetScenario = (name) => api('POST', '/api/v1/demo/scenario', { name });
 const patchPrefs = (p) => api('PATCH', '/api/v1/prefs', p);
 
 async function openPage({ width = 1440, height = 900, scheme = 'dark', reducedMotion = 'reduce' } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, colorScheme: scheme, reducedMotion });
+  const context = await muteContext(await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, colorScheme: scheme, reducedMotion }));
   const page = await context.newPage();
   const tag = `[${engine} ${width}x${height} ${scheme}]`;
   page.on('console', (m) => {
@@ -471,7 +474,7 @@ try {
   for (const scheme of ['dark', 'light']) {
     await resetScenario('default');
     await patchPrefs({ theme: scheme });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: scheme, reducedMotion: 'reduce' });
+    const context = await muteContext(await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: scheme, reducedMotion: 'reduce' }));
     await context.addInitScript(() => {
       window.__sent = [];
       window.__OMNIWATCH_NATIVE__ = Object.freeze({ app: 'Omniwatch', bridge: 1, platform: 'macos', version: '1.0.0' });

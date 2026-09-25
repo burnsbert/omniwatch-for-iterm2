@@ -8,7 +8,7 @@
 import { h } from '../dom.js';
 import { icon, stateIcon } from './icons.js';
 import { text, attr, cls, show, cssVar } from './patch.js';
-import { MAX_LABEL_CHARS } from '../reply.js';
+import { MAX_LABEL_CHARS, singleLine } from '../reply.js';
 import { createRibbon, updateRibbon } from './activity.js';
 import { setStall } from './session-row.js';
 
@@ -111,7 +111,25 @@ export function createPreviewPane(ctx, { variant = 'full' } = {}) {
     e.preventDefault();
     sendText(true);
   });
+  // Replies are one line (API.md 422 multiline_reply): ⏎ sends, ⇧⏎ does
+  // nothing, and pasted line breaks become spaces with a hint.
+  replyInput.addEventListener('paste', (e) => {
+    const data = e.clipboardData && e.clipboardData.getData('text');
+    if (!data || !/[\r\n]/.test(data)) return;
+    e.preventDefault();
+    const flat = singleLine(data);
+    const start = replyInput.selectionStart ?? replyInput.value.length;
+    const end = replyInput.selectionEnd ?? start;
+    replyInput.value = replyInput.value.slice(0, start) + flat + replyInput.value.slice(end);
+    replyInput.setSelectionRange(start + flat.length, start + flat.length);
+    ctx.ctl.toast('info', 'Line breaks removed — replies are sent as one line');
+  });
   replyInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -221,7 +239,7 @@ export function createPreviewPane(ctx, { variant = 'full' } = {}) {
     text(pathEl, m.pathDisplay || '~');
     attr(pathEl, 'title', s.path || m.pathDisplay || '');
     text(labelPill, m.label);
-    text(chip, m.agentLabel || (m.dashboard ? 'Ultrawatch' : ''));
+    text(chip, m.agentLabel || (m.dashboard ? 'Dashboard' : ''));
     attr(chip, 'data-agent', m.agent || (m.dashboard ? 'dashboard' : null));
     chip.hidden = !(m.agentLabel || m.dashboard);
     text(tabEl, m.tabLabel ? `tab ${m.tabLabel}` : '');

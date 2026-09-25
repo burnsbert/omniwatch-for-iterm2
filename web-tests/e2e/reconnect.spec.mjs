@@ -1,6 +1,6 @@
 // Backend restart: "Reconnecting…" while it's down, stale data stays; the
 // page is back once it's re-authorized against the new backend (§2.9).
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.mjs';
 import net from 'node:net';
 import { startBackend } from './backend.mjs';
 

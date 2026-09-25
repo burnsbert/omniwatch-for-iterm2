@@ -256,6 +256,9 @@ test('quick reply guards in order: 400, 422, 404, 422, 409 stale_screen, 202 (§
   assert.equal((await reply({ text: '', expect_hash: w.screen_hash })).status, 422);
   assert.equal((await reply({ text: 'a\u0007', expect_hash: w.screen_hash })).status, 422);
   assert.equal((await reply({ text: 'x'.repeat(2001), expect_hash: w.screen_hash })).status, 422);
+  const ml = await reply({ text: 'two\nlines', expect_hash: w.screen_hash });
+  assert.deepEqual([ml.status, ml.body.error.code], [422, 'multiline_reply']);
+  assert.equal((await reply({ text: '\r', expect_hash: w.screen_hash })).body.error.code, 'multiline_reply', 'checked before "empty"');
   assert.equal((await reply({ text: '1', expect_hash: 'x' }, 'NOPE')).status, 404);
   assert.equal((await reply({ text: '1', expect_hash: busy.screen_hash }, enc(busy.uid))).status, 422);
   const stale = await reply({ text: '1', expect_hash: 'deadbeef' });

@@ -8,10 +8,22 @@
 
 import { test as base, expect } from '@playwright/test';
 import { startBackend, resetBackend, DEMO_CLOCK } from './backend.mjs';
+import { muteContext } from '../audio-mute.mjs';
 
 export { expect };
 
+/** A muted context for tests that make their own (e.g. colorScheme variants). */
+export async function newMutedContext(browser, options = {}) {
+  return muteContext(await browser.newContext({ reducedMotion: 'reduce', ...options }));
+}
+
 export const test = base.extend({
+  // Every context the suite uses is silent (see ../audio-mute.mjs).
+  context: async ({ context }, use) => {
+    await muteContext(context);
+    await use(context);
+  },
+
   backend: [async ({}, use) => { // eslint-disable-line no-empty-pattern
     const b = await startBackend();
     await use(b);

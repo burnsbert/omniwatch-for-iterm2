@@ -14,7 +14,7 @@ const sessions = fixture.sessions;
 // order, by construction): [0] AAAA0001 busy/claude, [1] AAAA0002
 // waiting/claude, [2] AAAA0003 quiet/no-agent, [3] AAAA0004 idle/codex,
 // [4] BBBB0001 waiting/codex, [5] BBBB0002 active/no-agent,
-// [6] BBBB0003 quiet/no-agent (muted dashboard).
+// [6] BBBB0003 quiet/no-agent (muted dev-server tab).
 
 function uidsOf(list) {
   return list.map((s) => s.uid);

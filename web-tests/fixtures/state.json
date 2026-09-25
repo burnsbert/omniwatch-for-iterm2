@@ -121,13 +121,13 @@
     {
       "uid": "BBBBBBBB-0003-4BBB-8BBB-000000000003",
       "window_id": 311, "window_number": 2, "tab_index": 3, "session_index": 1, "tab_label": "2.3",
-      "tty": "/dev/ttys012", "name": "ultrawatch", "is_processing": true,
-      "path": "/Users/me/src/ultrawatch-for-iterm2", "path_display": "~/src/ultrawatch-for-iterm2",
+      "tty": "/dev/ttys012", "name": "node", "is_processing": true,
+      "path": "/Users/me/src/tools", "path_display": "~/src/tools",
       "agent": null, "agents": [],
       "state": "quiet", "state_since": 1789990000.0, "rule": null,
       "attention": false, "last_change": 1789980000.0, "fresh_until": null,
-      "label": "", "display_name": "ultrawatch", "title": "ultrawatch",
-      "tab_color": null, "project": null, "muted": true, "is_dashboard": true,
+      "label": "", "display_name": "node", "title": "~/src/tools",
+      "tab_color": null, "project": null, "muted": true, "is_dashboard": false,
       "screen_hash": "88ii99jj",
       "prompt": null
     }
@@ -145,7 +145,7 @@
       "text": "Allow command?\nrun `terraform apply`\nYes (y)\nNo (n)\n"
     },
     "BBBBBBBB-0002-4BBB-8BBB-000000000002": { "hash": "66gg77hh", "text": "2026-09-25T10:00:00Z INFO request served\n" },
-    "BBBBBBBB-0003-4BBB-8BBB-000000000003": { "hash": "88ii99jj", "text": "▛▞ ULTRAWATCH\n" }
+    "BBBBBBBB-0003-4BBB-8BBB-000000000003": { "hash": "88ii99jj", "text": "  VITE v5.4.2  ready in 312 ms\n\n  ➜  Local:   http://localhost:5173/\n" }
   },
   "usage": {
     "claude": {

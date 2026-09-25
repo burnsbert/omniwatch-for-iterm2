@@ -1,6 +1,6 @@
 // Settings sheet and themes (§2.6): colorScheme × prefs.theme, text size,
 // sound, hints, keep on top (browser), stall minutes, editor.
-import { test, expect } from './fixtures.mjs';
+import { test, expect, newMutedContext } from './fixtures.mjs';
 
 const bg = (page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
@@ -12,7 +12,7 @@ test.describe('themes', () => {
   ]) {
     test(`colorScheme ${scheme} + theme ${theme} → ${expected}`, async ({ app, browser }) => {
       await app.patch({ theme });
-      const ctx = await browser.newContext({ colorScheme: scheme, reducedMotion: 'reduce' });
+      const ctx = await newMutedContext(browser, { colorScheme: scheme });
       const page = await ctx.newPage();
       await page.goto(app.backend.authUrl);
       await page.waitForSelector('.ow-row');

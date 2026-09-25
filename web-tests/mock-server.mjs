@@ -198,12 +198,14 @@ const SCREENS = {
     }
     return lines.join('\n');
   },
-  ultrawatch: () => [
-    '▛▞ ULTRAWATCH  ·  9 tabs · 4 agents · 2 waiting',
-    '──────────────────────────────────────────────',
-    ' ◉ CC   1.2  ~/src/billing      refactor   wait 3m',
-    ' ⠹ CC   1.1  ~/src/api-gateway             ',
-    ' ○ CX   1.4  ~                             idle 22m',
+  vite: () => [
+    '  VITE v5.4.2  ready in 312 ms',
+    '',
+    '  ➜  Local:   http://localhost:5173/',
+    '  ➜  Network: use --host to expose',
+    '  ➜  press h + enter to show help',
+    '',
+    '10:02:11 AM [vite] hmr update /src/components/Nav.tsx',
   ].join('\n'),
   docs: () => [
     '> Update the README install section for the new installer.',
@@ -290,7 +292,8 @@ function defaultScenario() {
   x5.path = '/Users/me/src/infra'; x5.path_display = '~/src/infra';
   z3.last_change = t - 7 * 60;
   l6.name = 'tail -f access.log'; l6.display_name = l6.name; l6.title = l6.name; l6.last_change = t - 1;
-  u7.is_dashboard = true; u7.name = 'Ultrawatch'; u7.display_name = 'Ultrawatch'; u7.title = 'Ultrawatch';
+  u7.path = '/Users/me/src/tools'; u7.path_display = '~/src/tools'; u7.name = 'node'; u7.display_name = 'node';
+  u7.title = '~/src/tools'; u7.is_dashboard = false; u7.muted = false;
   st.projects[2].name = 'infra';
   st.quota_prompt = { pct: 91.0, to: 'you@example.com' }; // the real demo raises it at startup
   // Two more agents so the grid has a real wall.
@@ -316,7 +319,7 @@ function defaultScenario() {
   put(x4.uid, SCREENS.codexIdle());
   put(x5.uid, SCREENS.codexApprove());
   put(l6.uid, SCREENS.log(30));
-  put(u7.uid, SCREENS.ultrawatch());
+  put(u7.uid, SCREENS.vite());
   put('CCCCCCCC-0001-4CCC-8CCC-000000000001', SCREENS.codexBusy(0));
   put('CCCCCCCC-0002-4CCC-8CCC-000000000002', SCREENS.docs());
   st.iterm.last_poll_at = t;
@@ -1107,6 +1110,8 @@ export async function startMockServer({
       if (typeof text !== 'string') throw bad('text must be a string');
       if ('submit' in body && !isBool(body.submit)) throw bad('submit must be a boolean');
       if (typeof body.expect_hash !== 'string' || !body.expect_hash) throw bad('expect_hash is required');
+      // API.md order: replies are one line — \n / \r get 422 multiline_reply (before "empty").
+      if (/[\n\r]/.test(text)) throw new ApiError(422, 'multiline_reply', 'replies must be a single line');
       if (!text) throw invalid('text is empty');
       cleanText(text, 'text', 2000, true);
       const s = requireSession(uid);
