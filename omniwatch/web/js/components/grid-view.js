@@ -9,6 +9,8 @@ import { text, attr, cls, reconcile } from './patch.js';
 import { tailLines } from '../preview.js';
 import { gridColumnCount } from '../viewmodel.js';
 import { MAX_LABEL_CHARS } from '../reply.js';
+import { createRibbon, updateRibbon } from './activity.js';
+import { setStall } from './session-row.js';
 
 export const TILE_LINES = 9;
 
@@ -29,10 +31,13 @@ export function createGridView(ctx) {
     const chip = h('span', { class: 'ow-chip' });
     const dot = h('span', { class: 'ow-dot' });
     const age = h('span', { class: 'ow-tile-age' });
-    const title = h('div', { class: 'ow-tile-title' }, [stateHost, tab, name, chip, dot, h('span', { class: 'ow-spacer' }), age]);
+    const stall = h('span', { class: 'ow-stall-chip' });
+    const title = h('div', { class: 'ow-tile-title' }, [stateHost, tab, name, chip, dot, h('span', { class: 'ow-spacer' }), stall, age]);
     const body = h('pre', { class: 'ow-tile-body', 'aria-hidden': 'true' });
-    const tile = h('div', { class: 'ow-tile', role: 'gridcell', tabindex: '-1', draggable: 'true' }, [title, body]);
-    tile.__ow = { stateHost, tab, name, chip, dot, age, body, title };
+    const ribbon = createRibbon({ size: 'sm' });
+    const foot = h('div', { class: 'ow-tile-foot' }, ribbon);
+    const tile = h('div', { class: 'ow-tile', role: 'gridcell', tabindex: '-1', draggable: 'true' }, [title, body, foot]);
+    tile.__ow = { stateHost, tab, name, chip, dot, age, body, title, stall, ribbon, foot };
     tile.addEventListener('click', () => {
       ctx.run('session.select', { uid: tile.__owUid });
       el.focus({ preventScroll: true });
@@ -72,6 +77,10 @@ export function createGridView(ctx) {
     attr(t.dot, 'data-color', m.tabColor || null);
     t.dot.hidden = !m.tabColor;
     text(t.age, m.age);
+    setStall(t.stall, m.stalledText);
+    updateRibbon(t.ribbon, m.ribbon);
+    t.foot.hidden = !m.ribbon;
+    attr(tile, 'data-stalled', m.stalled ? 'true' : null);
     const screen = f.screens[s.uid];
     const body = screen ? tailLines(screen.text, TILE_LINES, 400, { stripChrome: true }).join('\n') : '';
     text(t.body, body);

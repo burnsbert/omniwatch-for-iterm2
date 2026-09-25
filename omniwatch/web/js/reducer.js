@@ -24,12 +24,14 @@ export const initialState = Object.freeze({
   projects: [],
   capabilities: { tab_colors: null, reply: false, debug_rule: false },
   quota_prompt: null,
+  stats: null,
   // Client-only bookkeeping, never present in server payloads:
   connectionStatus: 'connecting', // connecting | connected | reconnecting
   toasts: [],
   toastSeq: 0,
   lastTransition: null,
   lastAction: null,
+  lastStall: null,
 });
 
 function applyScreens(state, data) {
@@ -90,6 +92,14 @@ const HANDLERS = {
   },
   quota(state, data) {
     return { ...state, quota_prompt: data };
+  },
+  // API.md §6: `{seq, stats}` — blocked-on-you totals (changes only on transitions).
+  stats(state, data) {
+    return { ...state, seq: data.seq !== undefined ? data.seq : state.seq, stats: data.stats || null };
+  },
+  // API.md §6: a busy session became stalled (the controller toasts it).
+  stall(state, data) {
+    return { ...state, lastStall: data };
   },
   // Local-only: the quota banner was acted on (draft/skip). The server has
   // no "quota cleared" event (§4.4.2), so the client clears it itself.

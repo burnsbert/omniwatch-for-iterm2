@@ -46,15 +46,22 @@ function hasAgent(session) {
 const COMPARATORS = {
   natural: (a, b) => compareTuples(naturalTuple(a), naturalTuple(b)),
 
+  // Within the busy tier a stalled session (API.md §5, P1→v1) comes first,
+  // longest-stalled first: it probably needs you too. Sessions without the
+  // field sort exactly as in Ultrawatch (P-60).
   attention: (a, b) => compareTuples(
     [
       stateRank(a.state),
       a.state === 'waiting' ? (a.state_since || 0) : 0,
+      a.state === 'busy' && a.stalled ? 0 : 1,
+      a.state === 'busy' && a.stalled ? (a.stalled_since || 0) : 0,
       ...naturalTuple(a),
     ],
     [
       stateRank(b.state),
       b.state === 'waiting' ? (b.state_since || 0) : 0,
+      b.state === 'busy' && b.stalled ? 0 : 1,
+      b.state === 'busy' && b.stalled ? (b.stalled_since || 0) : 0,
       ...naturalTuple(b),
     ],
   ),

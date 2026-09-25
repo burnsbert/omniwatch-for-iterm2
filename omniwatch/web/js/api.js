@@ -85,6 +85,11 @@ export function createApi({ baseUrl = '', fetchImpl } = {}) {
       { text, submit, expect_hash: expectHash },
     ),
 
+    reveal: (uid, target) => request('POST', `/api/v1/sessions/${encode(uid)}/reveal`, { target }),
+    history: (uid, hours) => request('GET', `/api/v1/sessions/${encode(uid)}/history${hours ? `?hours=${hours}` : ''}`),
+    usageHistory: (hours) => request('GET', `/api/v1/usage/history${hours ? `?hours=${hours}` : ''}`),
+    stats: () => request('GET', '/api/v1/stats'),
+
     newTab: () => request('POST', '/api/v1/tabs/new'),
     launchIterm: () => request('POST', '/api/v1/iterm/launch'),
     refresh: () => request('POST', '/api/v1/refresh'),

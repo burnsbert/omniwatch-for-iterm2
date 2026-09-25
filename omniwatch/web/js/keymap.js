@@ -47,6 +47,11 @@ export const BINDINGS = Object.freeze({
   'reply.send.8': [{ key: '8', alt: true }],
   'reply.send.9': [{ key: '9', alt: true }],
   refresh: [{ key: 'r' }, { key: 'R' }, { key: 'r', meta: true }],
+  // Open in… (API.md reveal): e editor, o Finder, y copy path ("yank"). None collide with §2.5.
+  'reveal.editor': [{ key: 'e' }, { key: 'E' }],
+  'reveal.finder': [{ key: 'o' }, { key: 'O' }],
+  'reveal.copyPath': [{ key: 'y' }, { key: 'Y' }],
+  'history.open': [{ key: 't' }, { key: 'T' }],
 
   'view.cycle': [{ key: 'v' }, { key: 'V' }],
   'view.split': [{ key: '1', meta: true }],

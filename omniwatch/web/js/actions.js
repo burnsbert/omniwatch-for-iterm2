@@ -379,12 +379,54 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
    * client-local override (the API only accepts system|dark|light), kept in
    * localStorage where available.
    */
-  function setTheme(theme) {
-    const hc = theme === 'high-contrast';
-    dispatchUi({ type: 'setHighContrast', on: hc });
-    if (env.localSet) env.localSet(HIGH_CONTRAST_KEY, hc ? '1' : '');
-    if (hc) return true;
-    return patchPrefs({ theme });
+  async function setTheme(theme) {
+    if (theme !== 'high-contrast') {
+      dispatchUi({ type: 'setHighContrast', on: false });
+      if (env.localSet) env.localSet(HIGH_CONTRAST_KEY, '');
+      return patchPrefs({ theme });
+    }
+    // Prefer the real pref; a backend that only knows system|dark|light
+    // answers 422, and then high contrast stays a client-side override.
+    dispatchUi({ type: 'setHighContrast', on: true });
+    try {
+      const res = await api.patchPrefs({ theme: 'high-contrast' });
+      const srv = getServer();
+      const full = res && res.theme ? res : { ...(srv.prefs || {}), theme: 'high-contrast' };
+      dispatchServer({ type: 'prefs', data: { seq: srv.seq, prefs: { ...srv.prefs, ...full }, projects: srv.projects } });
+      if (env.localSet) env.localSet(HIGH_CONTRAST_KEY, '');
+      return true;
+    } catch (err) {
+      if (err && (err.status === 422 || err.code === 'invalid')) {
+        if (env.localSet) env.localSet(HIGH_CONTRAST_KEY, '1');
+        return true;
+      }
+      dispatchUi({ type: 'setHighContrast', on: false });
+      fail('settings', err);
+      return false;
+    }
+  }
+
+  // ---- open in… / activity / stats ------------------------------------
+
+  async function reveal(uid, target) {
+    const s = uid ? (getServer().sessions || []).find((x) => x.uid === uid) : selected();
+    if (!s) return false;
+    try {
+      await api.reveal(s.uid, target);
+      return true; // the result arrives as an `action` event (kind `reveal`)
+    } catch (err) {
+      toast(err && err.status === 422 ? 'warn' : 'error', err && err.status === 422
+        ? (err.message || 'no known path for this session')
+        : `reveal failed: ${(err && err.message) || 'unknown error'}`);
+      return false;
+    }
+  }
+
+  function openHistory(uid) {
+    const s = uid ? { uid } : selected();
+    if (!s) return;
+    dispatchUi({ type: 'openModal', modal: { type: 'history', uid: s.uid } });
+    if (env.loadHistory) env.loadHistory(s.uid);
   }
 
   function openPalette() {
@@ -596,6 +638,19 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
       if (native.isNativeHost()) native.restartBackend(true);
       else toast('info', 'Run `omniwatch demo` in a terminal to try the demo');
     },
+    'reveal.editor': (args) => reveal(args && args.uid, 'editor'),
+    'reveal.finder': (args) => reveal(args && args.uid, 'finder'),
+    'reveal.copyPath': (args) => reveal(args && args.uid, 'copy_path'),
+    'session.reveal': (args) => reveal(args && args.uid, args && args.target),
+    'history.open': (args) => openHistory(args && args.uid),
+    'stats.open': () => dispatchUi({ type: 'openModal', modal: { type: 'stats' } }),
+    'nativeSettings.launchAtLogin': (args) => {
+      // Native-only settings (SHELL_CONTRACT §6): never PATCHed; native echoes `nativeSettings`.
+      if (native.isNativeHost() && native.setLaunchAtLogin) native.setLaunchAtLogin(!!(args && args.value));
+    },
+    'nativeSettings.menuBarOnly': (args) => {
+      if (native.isNativeHost() && native.setMenuBarOnly) native.setMenuBarOnly(!!(args && args.value));
+    },
     'confirm.accept': () => {
       const m = getUi().modal;
       if (m && m.type === 'confirm' && m.command) return run(m.command, m.args);
@@ -641,6 +696,15 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
       }
     } else if (event.type === 'action') {
       if (data.ok === false) toast('error', `${data.kind || 'action'} failed: ${data.detail || '?'}`);
+      else if (data.kind === 'reveal' && data.detail) toast('info', data.detail);
+    } else if (event.type === 'stall') {
+      // API.md §6: once per episode; the app shell also posts a banner.
+      const p = prefs();
+      if (!data.muted && p.stall_minutes !== 0) {
+        const mins = data.since ? Math.max(1, Math.round((env.nowS() - data.since) / 60)) : data.minutes;
+        toast('warn', `${data.title || 'A session'} may be stalled — no screen change for ${mins}m`,
+          { command: 'session.select', args: { uid: data.uid }, actionLabel: 'Show' });
+      }
     } else if (event.type === 'toast') {
       if (data.message) serverToast(data);
     }

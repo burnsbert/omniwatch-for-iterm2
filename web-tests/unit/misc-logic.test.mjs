@@ -138,7 +138,9 @@ test('context menu: go to, zoom, label, mute, 5 projects + clear, close (P-64/P-
   const s = { uid: 'u', tab_color: 'blue', label: '', muted: false };
   const items = contextMenuItems(s, { projects, tabColors: true, reply: true });
   const ids = items.filter((i) => !i.sep).map((i) => i.id);
-  assert.deepEqual(ids, ['session.goto', 'zoom.toggle', 'reply.focus', 'label.edit', 'session.mute.toggle', 'color.set.1', 'color.set.2', 'color.set.3', 'color.set.4', 'color.set.5', 'color.clear', 'tab.close']);
+  assert.deepEqual(ids, ['session.goto', 'zoom.toggle', 'reply.focus', 'history.open', 'reveal.editor', 'reveal.finder', 'reveal.copyPath', 'label.edit', 'session.mute.toggle', 'color.set.1', 'color.set.2', 'color.set.3', 'color.set.4', 'color.set.5', 'color.clear', 'tab.close']);
+  assert.ok(items.filter((i) => /^reveal\./.test(i.id || '')).every((i) => i.disabled), 'open-in needs a known path');
+  assert.ok(contextMenuItems({ ...s, path: '/x' }, { projects }).filter((i) => /^reveal\./.test(i.id || '')).every((i) => !i.disabled));
   assert.equal(items.find((i) => i.id === 'color.set.1').checked, true);
   assert.equal(items.find((i) => i.id === 'color.set.1').label, 'api');
   assert.equal(items.find((i) => i.id === 'color.set.2').label, 'purple');

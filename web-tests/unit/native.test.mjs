@@ -176,3 +176,14 @@ test('a missing webkit.messageHandlers.omniwatch (partial webkit object) is stil
   assert.equal(bridge.isAvailable(), false);
   assert.equal(bridge.postMessage({ type: 'theme', value: 'light' }), false);
 });
+
+test('launchAtLogin / menuBarOnly post the SHELL_CONTRACT §6 messages', async () => {
+  const { createNativeBridge } = await import('../../omniwatch/web/js/native.js');
+  const sent = [];
+  const g = { webkit: { messageHandlers: { omniwatch: { postMessage: (m) => sent.push(m) } } } };
+  const b = createNativeBridge(g);
+  assert.equal(b.setLaunchAtLogin(1), true);
+  assert.equal(b.setMenuBarOnly(false), true);
+  assert.deepEqual(sent, [{ type: 'launchAtLogin', value: true }, { type: 'menuBarOnly', value: false }]);
+  assert.equal(createNativeBridge({}).setLaunchAtLogin(true), false, 'no-op outside the app');
+});

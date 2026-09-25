@@ -34,6 +34,8 @@ import { createShortcutSheet, createConfirmDialog, createSettingsSheet, createOn
 import { createMenuHost } from './components/menus.js';
 import { createToastStack, createBanners, renderEmptyState, createHintBar } from './components/feedback.js';
 import { cssVar } from './components/patch.js';
+import { createStatsChip, createStatsCard, createHistorySheet } from './components/insights.js';
+import { statsModel } from './stats-model.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -88,6 +90,7 @@ const ctl = createController({
       Notification.requestPermission().then(() => schedule());
     },
     loadDiagnostics,
+    loadHistory: (uid) => loadHistory(uid),
     localSet: (k, v) => {
       try {
         if (v) window.localStorage.setItem(k, v);
@@ -109,6 +112,7 @@ const ctx = {
   focusList: () => focusList(),
   openContextMenu: (uid, x, y, opts = {}) => ui.dispatch({ type: 'openMenu', menu: { type: 'context', uid, x, y, ...opts } }),
   openSortMenu: (x, y) => ui.dispatch({ type: 'openMenu', menu: { type: 'sort', x, y } }),
+  loadHistory: (uid) => loadHistory(uid),
 };
 
 // ---------------------------------------------------------------- mounting
@@ -116,6 +120,11 @@ const ctx = {
 const app = $('app');
 toolbar = createToolbar(ctx);
 $('ow-toolbar').appendChild(toolbar.el);
+const statsChip = createStatsChip(ctx);
+{
+  const left = toolbar.el.querySelector('.ow-tb-left');
+  left.insertBefore(statsChip.el, left.children[1] || null);
+}
 const banners = createBanners(ctx, $('ow-banners'));
 const projects = createProjectsPanel(ctx);
 const sidebarList = createSessionList(ctx, { mode: 'sidebar' });
@@ -134,6 +143,8 @@ const modals = createModalHost(ctx, $('ow-modals'), {
   confirm: createConfirmDialog,
   settings: createSettingsSheet,
   onboarding: createOnboarding,
+  stats: createStatsCard,
+  history: createHistorySheet,
 });
 const menus = createMenuHost(ctx, $('ow-modals'));
 
@@ -216,6 +227,7 @@ function buildFrame() {
     matchText: matchCountText(u.filter, d.rows.length, (srv.sessions || []).length),
     colorCounts,
     projects: srv.projects || [],
+    stats: statsModel(srv.stats, now, srv.sessions || []),
     hints: hintsFor({ overlay: u.overlay, view: layout, hasSelection: !!d.selected, reply: !!(d.selected && replyFor(d.selected)) }),
     isNative,
   };
@@ -278,6 +290,7 @@ function render() {
   cssVar(app, '--ow-split', String(clampSplit(prefs.split_ratio)));
 
   toolbar.update(f);
+  statsChip.update(f);
   banners.update(f);
 
   // Projects live in the sidebar (split/compact) or above the table/grid.
@@ -389,6 +402,10 @@ server.subscribe((state, prev, event) => {
     clockOffset = state.server_time - Date.now() / 1000;
   }
   if (event) ctl.onServerEvent(event);
+  if (event && (event.type === 'state' || event.type === 'usage')) loadUsageHistory();
+  // Keep an open activity sheet current when its session changes state.
+  const m = uiStore.getState().modal;
+  if (event && m && m.type === 'history' && event.type === 'transition' && event.data && event.data.uid === m.uid) loadHistory(m.uid);
   schedule();
 });
 uiStore.subscribe(() => renderNow());
@@ -612,6 +629,33 @@ function announce(id, msg) {
   }, 30);
 }
 
+async function loadHistory(uid) {
+  try {
+    const data = await api.history(uid);
+    ui.dispatch({ type: 'setHistory', uid, data, at: Date.now() });
+  } catch (err) {
+    ui.dispatch({ type: 'setHistory', uid, data: { error: err.status === 404 ? 'This session has closed.' : `Couldn’t load the timeline: ${err.message}` }, at: Date.now() });
+  }
+}
+
+// Usage sparklines (GET /usage/history): after each state/usage event, at most once a minute.
+let usageHistoryAt = 0;
+let usageHistoryInflight = false;
+async function loadUsageHistory(force = false) {
+  if (usageHistoryInflight || (!force && Date.now() - usageHistoryAt < 60000)) return;
+  usageHistoryInflight = true;
+  try {
+    const data = await api.usageHistory(24);
+    usageHistoryAt = Date.now();
+    ui.dispatch({ type: 'setUsageHistory', data, at: usageHistoryAt });
+  } catch (_) {
+    // Sparklines are optional; an older backend has no /usage/history.
+    usageHistoryAt = Date.now();
+  } finally {
+    usageHistoryInflight = false;
+  }
+}
+
 async function loadDiagnostics() {
   try {
     const d = await api.diagnostics();
@@ -627,6 +671,12 @@ native.install({
   onCommand: (id, args) => ctl.run(id, args),
   onNativeEvent: (event) => {
     if (event && event.type === 'notifyPermission') ui.dispatch({ type: 'setNotifyPermission', status: event.status });
+    if (event && event.type === 'nativeSettings') {
+      ui.dispatch({
+        type: 'setNativeSettings',
+        settings: { launchAtLogin: !!event.launchAtLogin, menuBarOnly: !!event.menuBarOnly, launchAtLoginError: event.launchAtLoginError || '' },
+      });
+    }
   },
 });
 try {

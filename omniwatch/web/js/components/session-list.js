@@ -18,6 +18,7 @@ const TABLE_COLUMNS = [
   { id: 'tab', label: 'Tab', sort: 'natural' },
   { id: 'path', label: 'Path', sort: 'path' },
   { id: 'name', label: 'Name / label', sort: null },
+  { id: 'activity', label: 'Last 8 h', sort: null },
   { id: 'age', label: 'Age', sort: 'activity' },
   { id: 'color', label: 'Color', sort: null },
 ];

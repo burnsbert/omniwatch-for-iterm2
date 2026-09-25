@@ -9,6 +9,8 @@ import { h } from '../dom.js';
 import { icon, stateIcon } from './icons.js';
 import { text, attr, cls, show, cssVar } from './patch.js';
 import { MAX_LABEL_CHARS } from '../reply.js';
+import { createRibbon, updateRibbon } from './activity.js';
+import { setStall } from './session-row.js';
 
 export function createPreviewPane(ctx, { variant = 'full' } = {}) {
   // ---- header
@@ -29,6 +31,15 @@ export function createPreviewPane(ctx, { variant = 'full' } = {}) {
   const tabEl = h('span', { class: 'ow-pv-tab' });
   const dot = h('span', { class: 'ow-dot' });
   const nameEl = h('span', { class: 'ow-pv-name' });
+  const stallChip = h('span', { class: 'ow-stall-chip ow-stall-chip-lg' });
+  const ribbon = createRibbon({ size: 'md', interactive: true, onOpen: () => current && ctx.run('history.open', { uid: current.uid }) });
+  const ribbonRow = h('div', { class: 'ow-pv-ribbon' }, [
+    h('span', { class: 'ow-pv-ribbon-label', 'aria-hidden': 'true' }, '8h'), ribbon, h('span', { class: 'ow-pv-ribbon-label', 'aria-hidden': 'true' }, 'now'),
+  ]);
+  const editorBtn = h('button', {
+    class: 'ow-icon-btn', type: 'button', title: 'Open in editor (e)', 'aria-label': 'Open in editor',
+    onClick: () => ctx.run('reveal.editor', { uid: current && current.uid }),
+  }, icon('code', { size: 15 }));
   const muteBtn = h('button', {
     class: 'ow-icon-btn', type: 'button', onClick: () => ctx.run('session.mute.toggle', { uid: current && current.uid }),
   });
@@ -41,9 +52,10 @@ export function createPreviewPane(ctx, { variant = 'full' } = {}) {
     onClick: () => ctx.run('session.goto', { uid: current && current.uid }),
   }, [icon('goto', { size: 14 }), h('span', { class: 'ow-btn-label' }, 'Go to'), h('kbd', {}, '⏎')]);
   const header = h('header', { class: 'ow-pv-head' }, [
-    h('div', { class: 'ow-pv-title' }, [stateEl, pathEl, labelHost]),
+    h('div', { class: 'ow-pv-title' }, [stateEl, stallChip, pathEl, labelHost]),
     h('div', { class: 'ow-pv-meta' }, [chip, tabEl, dot, nameEl]),
-    h('div', { class: 'ow-pv-actions' }, [muteBtn, zoomBtn, gotoBtn]),
+    h('div', { class: 'ow-pv-actions' }, [editorBtn, muteBtn, zoomBtn, gotoBtn]),
+    ribbonRow,
   ]);
 
   // ---- screen
@@ -195,6 +207,7 @@ export function createPreviewPane(ctx, { variant = 'full' } = {}) {
     const m = f.rowModel(s);
     attr(el, 'data-state', m.state);
     attr(el, 'data-agent', m.agent || null);
+    attr(el, 'data-stalled', m.stalled ? 'true' : null);
     cls(el, 'is-flash', !!f.flashes[s.uid]);
 
     // header
@@ -216,6 +229,10 @@ export function createPreviewPane(ctx, { variant = 'full' } = {}) {
     attr(dot, 'title', f.colorTitle(s) || null);
     dot.hidden = !m.tabColor;
     text(nameEl, m.name && m.name !== m.label ? m.name : '');
+    setStall(stallChip, m.stalledText);
+    updateRibbon(ribbon, m.ribbon, { label: 'Activity' });
+    ribbonRow.hidden = !m.ribbon || variant === 'drawer';
+    editorBtn.hidden = !s.path;
     updateLabelEditor(s, f.labelHost === variant && f.ui.editingLabel === s.uid);
 
     setIconButton(muteBtn, m.muted ? 'bellOff' : 'bell', m.muted ? 'Unmute session' : 'Mute session (no notifications, sound or flash)');

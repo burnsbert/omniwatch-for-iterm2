@@ -27,6 +27,9 @@ export const initialUi = Object.freeze({
   // The backend's `theme` pref is system|dark|light only (API.md §4), so the
   // high-contrast choice is a client-side override on top of it.
   highContrast: false,
+  nativeSettings: null, // {launchAtLogin, menuBarOnly, launchAtLoginError?} from the app shell
+  history: null, // {uid, data, at} — GET /sessions/{uid}/history
+  usageHistory: null, // {data, at} — GET /usage/history
 });
 
 function withToast(ui, level, message, now, extra = {}) {
@@ -134,6 +137,15 @@ const HANDLERS = {
   },
   setDiagnostics(ui, a) {
     return { ...ui, diagnostics: a.diagnostics };
+  },
+  setNativeSettings(ui, a) {
+    return { ...ui, nativeSettings: a.settings };
+  },
+  setHistory(ui, a) {
+    return { ...ui, history: { uid: a.uid, data: a.data, at: a.at } };
+  },
+  setUsageHistory(ui, a) {
+    return { ...ui, usageHistory: { data: a.data, at: a.at } };
   },
   setHighContrast(ui, a) {
     return ui.highContrast === !!a.on ? ui : { ...ui, highContrast: !!a.on };

@@ -210,6 +210,7 @@ export function accessibleName(s, now) {
   } else {
     parts.push(label);
   }
+  if (s.stalled) parts.push(s.stalled_since ? `possibly stalled for ${spokenDuration(now - s.stalled_since)}` : 'possibly stalled');
   if (s.muted) parts.push('muted');
   const agent = agentLongName(s.agent);
   if (agent) parts.push(agent);
@@ -229,6 +230,15 @@ export function spokenDuration(seconds) {
   if (s < 3600) return unit(Math.floor(s / 60), 'minute');
   if (s < 86400) return unit(Math.floor(s / 3600), 'hour');
   return unit(Math.floor(s / 86400), 'day');
+}
+
+/**
+ * "Stalled? 14m" (API.md §5 `stalled`/`stalled_since`): busy with an
+ * unchanged screen for ≥ prefs.stall_minutes. Empty when not stalled.
+ */
+export function stalledText(s, now) {
+  if (!s || !s.stalled) return '';
+  return s.stalled_since ? `Stalled? ${ageStr(now - s.stalled_since)}` : 'Stalled?';
 }
 
 /** Row tint (P-29): amber for waiting, green for fresh, amber wins. */
@@ -259,6 +269,9 @@ export function rowModel(s, now, projects) {
     projectName: project ? project.name : '',
     projectSlot: project ? project.slot : null,
     muted: !!s.muted,
+    stalled: !!s.stalled,
+    stalledText: stalledText(s, now),
+    ribbon: s.ribbon || null,
     attention: !!s.attention,
     dashboard: !!s.is_dashboard,
     a11y: accessibleName(s, now),
@@ -376,6 +389,7 @@ export function summaryModel(summary) {
   const s = summary || {};
   return {
     waiting: s.waiting || 0,
+    stalled: s.stalled || 0,
     tabs: s.tabs || 0,
     agents: s.agents || 0,
     busy: s.busy || 0,

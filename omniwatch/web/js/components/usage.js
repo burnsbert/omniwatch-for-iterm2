@@ -6,6 +6,8 @@
 import { h } from '../dom.js';
 import { icon } from './icons.js';
 import { text, attr, cls, cssVar } from './patch.js';
+import { sparkline } from './activity.js';
+import { windowPoints } from '../sparkline.js';
 
 function meter(l) {
   const fill = h('span', { class: 'ow-meter-fill' });
@@ -28,7 +30,8 @@ export function createUsageStrip(ctx) {
     const m = f.usage;
     // The compact companion layout always shows the one-line summary.
     const collapsed = f.prefs.usage_strip === 'collapsed' || f.layout === 'compact';
-    const key = JSON.stringify([collapsed, m.providers.map((p) => [p.id, p.message && p.message.text,
+    const hist = f.ui.usageHistory && f.ui.usageHistory.data;
+    const key = JSON.stringify([collapsed, f.ui.usageHistory && f.ui.usageHistory.at, f.layout, m.providers.map((p) => [p.id, p.message && p.message.text,
       p.limits.map((l) => [l.label, l.pctText, l.tone, l.reset.rel, l.warning && l.warning.text, l.dollars && l.dollars.text])])]);
     cls(el, 'is-collapsed', collapsed);
     attr(toggle, 'title', collapsed ? 'Expand usage strip' : 'Collapse usage strip');
@@ -66,6 +69,7 @@ export function createUsageStrip(ctx) {
           h('span', { class: 'ow-strip-lbl' }, l.label),
           h('span', { class: 'ow-strip-pct', 'data-tone': l.tone }, l.pctText),
           meter(l),
+          stripSpark(hist, l, f.now),
           l.reset.rel ? h('span', { class: 'ow-strip-reset' }, l.reset.rel) : null,
           l.dollars ? h('span', { class: 'ow-strip-dollars' }, l.dollars.shown ? l.dollars.text : '$ hidden') : null,
         ]));
@@ -79,6 +83,14 @@ export function createUsageStrip(ctx) {
   }
 
   return { el, update };
+}
+
+/** Last 6 h of a limit, 44 × 14 px, next to the strip meter (hidden when there's no history). */
+function stripSpark(hist, l, now) {
+  const series = hist && hist.limits && hist.limits[l.id];
+  if (!series) return null;
+  const pts = windowPoints(series.points, now - 6 * 3600, now + 60);
+  return sparkline(pts, { width: 44, height: 14, from: now - 6 * 3600, to: now, tone: l.tone, label: `${l.label}, last 6 hours` });
 }
 
 export function createUsageView(ctx) {
@@ -111,7 +123,8 @@ export function createUsageView(ctx) {
     dollarsBtn.appendChild(document.createTextNode(f.prefs.show_dollars ? 'Hide $' : 'Show $'));
     attr(dollarsBtn, 'title', 'Toggle dollar amounts ($)');
     attr(dollarsBtn, 'aria-pressed', f.prefs.show_dollars ? 'true' : 'false');
-    const key = JSON.stringify(m);
+    const hist = f.ui.usageHistory && f.ui.usageHistory.data;
+    const key = JSON.stringify([m, f.ui.usageHistory && f.ui.usageHistory.at]);
     if (key === lastKey) return;
     lastKey = key;
     while (content.firstChild) content.removeChild(content.firstChild);
@@ -124,7 +137,7 @@ export function createUsageView(ctx) {
       return;
     }
     for (const p of m.providers) {
-      const cards = p.limits.map((l) => limitCard(l));
+      const cards = p.limits.map((l) => limitCard(l, hist, f.now));
       content.appendChild(h('section', { class: 'ow-usage-provider', 'data-agent': p.id }, [
         h('h3', { class: 'ow-usage-provider-name' }, [h('span', { class: 'ow-dot', 'data-agent': p.id }), p.longName]),
         p.message ? h('p', { class: 'ow-usage-msg', 'data-tone': p.message.tone }, [icon(p.message.tone === 'muted' ? 'info' : 'alert', { size: 13 }), p.message.text]) : null,
@@ -136,15 +149,24 @@ export function createUsageView(ctx) {
   return { el, update };
 }
 
-function limitCard(l) {
+function limitCard(l, hist, now) {
+  const series = hist && hist.limits && hist.limits[l.id];
+  const spark = series ? sparkline(series.points, {
+    width: 220, height: 44, from: now - 24 * 3600, to: now, tone: l.tone, label: `${l.title}, last 24 hours`,
+  }) : null;
   return h('article', { class: 'ow-card', 'data-tone': l.tone, 'aria-label': `${l.title}: ${l.pctText}` }, [
     h('div', { class: 'ow-card-top' }, [
       h('span', { class: 'ow-card-title' }, l.title),
       l.dollars ? h('span', { class: `ow-card-dollars${l.dollars.shown ? '' : ' is-hidden'}` }, l.dollars.text) : null,
     ]),
-    h('div', { class: 'ow-card-pct', 'data-tone': l.tone }, l.pctText),
+    h('div', { class: 'ow-card-row' }, [
+      h('div', { class: 'ow-card-pct', 'data-tone': l.tone }, l.pctText),
+      l.burn && l.burn.rate ? h('span', { class: 'ow-card-rate', title: 'Current burn rate' }, [icon('trend', { size: 12 }), l.burn.rate]) : null,
+    ]),
     meter(l),
+    spark ? h('div', { class: 'ow-card-spark' }, [spark, h('div', { class: 'ow-card-spark-axis' }, [h('span', {}, '24h ago'), h('span', {}, 'now')])]) : null,
     h('div', { class: 'ow-card-reset' }, l.resetText || '—'),
+    l.burn ? h('div', { class: 'ow-card-burn', 'data-tone': l.burn.tone }, [icon('trend', { size: 13 }), l.burn.text]) : null,
     l.warning ? h('div', { class: 'ow-card-warn', 'data-tone': l.warning.tone }, [icon('alert', { size: 13 }), l.warning.text]) : null,
   ]);
 }

@@ -244,6 +244,36 @@ try {
     check(await page.locator('.ow-preview-full .ow-reply-opt').count() >= 2, 'reply options rendered');
     await shot(page, `split-${scheme}`);
 
+    // v1: blocked-on-you chip + card
+    await page.waitForSelector('.ow-stats-chip:not([hidden]) .ow-stats-main');
+    check(/blocked$/.test(await page.locator('.ow-stats-main').textContent()), 'stats chip text');
+    await page.locator('.ow-stats-chip').click();
+    await page.waitForSelector('.ow-stats-card .ow-st-hero-num');
+    check(await page.locator('.ow-stats-card .ow-histo-bar').count() === 48, 'waiting histogram has 48 bars');
+    check(await page.locator('.ow-stats-card .ow-st-row').count() >= 1, 'waiting-now list');
+    await shot(page, `stats-${scheme}`);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.ow-stats-card'));
+
+    // v1: timeline ribbon in the preview → full history sheet
+    await page.locator('.ow-row[data-state="waiting"]').first().click();
+    await page.waitForFunction(() => document.querySelectorAll('.ow-preview-full .ow-pv-ribbon .ow-rb').length === 48);
+    check(await page.locator('.ow-sessions-sidebar .ow-ribbon-xs .ow-rb').count() >= 48, 'row ribbons');
+    await page.locator('.ow-preview-full .ow-pv-ribbon .ow-ribbon').click();
+    await page.waitForSelector('.ow-history-sheet .ow-hist-seg');
+    check(await page.locator('.ow-history-sheet .ow-hist-totals li').count() >= 1, 'history totals');
+    await shot(page, `timeline-${scheme}`);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.ow-history-sheet'));
+
+    // v1: stalled chip (the default demo has a stalled agent)
+    await page.waitForSelector('.ow-sessions-sidebar .ow-stall-chip:not([hidden])');
+    await page.locator('.ow-sessions-sidebar .ow-row', { has: page.locator('.ow-stall-chip:not([hidden])') }).first().click();
+    await page.waitForSelector('.ow-preview-full .ow-stall-chip:not([hidden])');
+    check(/^Stalled\? \d+m$/.test((await page.locator('.ow-preview-full .ow-stall-chip').textContent()).trim()), 'stalled chip text');
+    await shot(page, `stalled-${scheme}`);
+    await page.locator('.ow-row[data-state="waiting"]').first().click();
+
     // filter (P-59)
     const before = await rowCount(page);
     await page.keyboard.press('/');
@@ -279,10 +309,13 @@ try {
     await page.waitForSelector('.ow-preview-full:not([hidden])');
     check((await api('GET', '/api/v1/prefs')).json.view === 'split', 'view persisted via PATCH');
 
-    // usage (P-51)
+    // usage (P-51) + v1 burn rate and sparklines
     await page.keyboard.press('u');
     await page.waitForSelector('.ow-usage-view:not([hidden]) .ow-card');
     check(await page.locator('.ow-card').count() >= 4, 'usage cards');
+    await page.waitForFunction(() => document.querySelectorAll('.ow-card .ow-spark').length >= 3, null, { timeout: 8000 });
+    check(await page.locator('.ow-card .ow-card-burn').count() >= 3, 'burn rate lines');
+    check(await page.locator('.ow-strip .ow-spark').count() >= 1, 'strip sparklines');
     await shot(page, `usage-${scheme}`);
     await page.keyboard.press('u');
 
@@ -295,7 +328,24 @@ try {
     await page.keyboard.press('Escape');
     await page.keyboard.press('Meta+,');
     await page.waitForSelector('.ow-settings');
-    await shot(page, `settings-${scheme}`);
+    await shot(page, `settings-browser-${scheme}`);
+    await page.locator('.ow-settings .ow-select').scrollIntoViewIfNeeded();
+    check(await page.locator('.ow-settings .ow-set-row', { hasText: 'Launch at login' }).isHidden(), 'native-only rows hidden in the browser');
+    check(await page.locator('.ow-settings .ow-set-row', { hasText: 'Stall notifications' }).isVisible(), 'stall notifications toggle (backend supports it)');
+    await shot(page, `settings-agents-${scheme}`);
+    if (scheme === 'dark') {
+      await page.locator('.ow-settings .ow-select').selectOption('15');
+      await page.locator('.ow-settings .ow-text-field').fill('zed');
+      await page.locator('.ow-settings .ow-text-field').press('Enter');
+      await page.waitForTimeout(300);
+      const pr = (await api('GET', '/api/v1/prefs')).json;
+      check(pr.stall_minutes === 15 && pr.editor === 'zed', `stall_minutes/editor saved (${pr.stall_minutes}, ${pr.editor})`);
+      await page.locator('.ow-settings .ow-switch[aria-label="Stall notifications"]').click();
+      await page.waitForTimeout(200);
+      check((await api('GET', '/api/v1/prefs')).json.notifications.stall === false, 'notifications.stall saved');
+      await page.locator('.ow-settings .ow-switch[aria-label="Stall notifications"]').click();
+      await patchPrefs({ stall_minutes: 10 });
+    }
     await page.keyboard.press('Escape');
     await page.keyboard.press('?');
     await page.waitForSelector('.ow-keys-grid');
@@ -315,11 +365,11 @@ try {
       check(st.sessions.some((s) => s.label === 'smoke-label'), 'label saved in the backend');
 
       // mute (§3 P0) via the preview header button
-      await page.locator('.ow-preview-full .ow-pv-actions .ow-icon-btn').first().click();
+      await page.locator('.ow-preview-full .ow-pv-actions .ow-icon-btn[aria-label^="Mute"]').click();
       await toastSeen(page, /muted$/);
       await page.waitForFunction(() => document.querySelector('.ow-sessions-sidebar .ow-row.is-selected.is-muted'));
       check(true, 'mute applied');
-      await page.locator('.ow-preview-full .ow-pv-actions .ow-icon-btn').first().click();
+      await page.locator('.ow-preview-full .ow-pv-actions .ow-icon-btn[aria-label^="Unmute"]').click();
       await toastSeen(page, /unmuted$/);
 
       // tab color (P-64): key 2 → purple
@@ -367,6 +417,25 @@ try {
         check(true, 'replied session left waiting after /demo/step');
       }
 
+      // v1: open in… (o Finder, y copy path, e editor) → toasts from the `reveal` action event
+      await page.locator('.ow-sessions-sidebar .ow-row').first().click();
+      await page.locator('.ow-sessions-sidebar .ow-listbox').focus();
+      await page.keyboard.press('o');
+      await toastSeen(page, /^revealed .* in Finder$/);
+      await page.keyboard.press('y');
+      await toastSeen(page, /^copied /);
+      await page.keyboard.press('e');
+      await toastSeen(page, /^opened .* in zed$/);
+      check(true, 'reveal finder/copy/editor');
+
+      // v1: a new stall episode → toast
+      await patchPrefs({ stall_minutes: 120 });
+      await api('POST', '/api/v1/demo/step', { seconds: 0 });
+      await patchPrefs({ stall_minutes: 10 });
+      await api('POST', '/api/v1/demo/step', { seconds: 1 });
+      await toastSeen(page, /may be stalled — no screen change for \d+m$/);
+      check(true, 'stall toast');
+
       // /demo/step advances the scripted timeline and the UI follows
       const seq0 = (await api('GET', '/api/v1/state')).json.seq;
       const step = await api('POST', '/api/v1/demo/step', { seconds: 6 });
@@ -375,9 +444,11 @@ try {
       await page.waitForFunction((n) => document.querySelector('.ow-pill-count').textContent === String(n), stateAfter.summary.waiting, { timeout: 8000 });
       check(true, 'waiting pill tracks the backend after a step');
 
-      // high contrast is client-local (no 422 from the backend)
+      // high contrast: a real pref now (API.md) — the PATCH must succeed
       await page.evaluate(() => window.omniwatch.command('theme.high-contrast'));
       await page.waitForFunction(() => document.documentElement.dataset.theme === 'high-contrast');
+      await page.waitForTimeout(200);
+      check((await api('GET', '/api/v1/prefs')).json.theme === 'high-contrast', 'high-contrast persisted as a pref');
       await shot(page, 'split-high-contrast');
       await page.evaluate(() => window.omniwatch.command('theme.dark'));
       await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
@@ -392,6 +463,37 @@ try {
     await shot(page, `confirm-${scheme}`);
     await page.keyboard.press('n');
     await page.waitForFunction(() => !document.querySelector('.ow-confirm'));
+    await context.close();
+  }
+
+  // App-shell mode (SHELL_CONTRACT §6): a fake WKWebView bridge; native-only
+  // settings appear, post launchAtLogin/menuBarOnly, and follow `nativeSettings`.
+  for (const scheme of ['dark', 'light']) {
+    await resetScenario('default');
+    await patchPrefs({ theme: scheme });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: scheme, reducedMotion: 'reduce' });
+    await context.addInitScript(() => {
+      window.__sent = [];
+      window.__OMNIWATCH_NATIVE__ = Object.freeze({ app: 'Omniwatch', bridge: 1, platform: 'macos', version: '1.0.0' });
+      window.webkit = { messageHandlers: { omniwatch: { postMessage: (m) => window.__sent.push(m) } } };
+    });
+    const page = await context.newPage();
+    page.on('pageerror', (e) => problems.push(`page error [native ${scheme}]: ${e.message}`));
+    page.on('console', (m) => { if (m.type() === 'error' && !(engine === 'webkit' && shotsDir && /Refused to apply a stylesheet/.test(m.text()))) problems.push(`console error [native ${scheme}]: ${m.text()}`); });
+    await page.goto(srv.authUrl);
+    await page.waitForSelector('.ow-row');
+    check(await page.evaluate(() => window.__sent.some((m) => m.type === 'ready')), 'bridge: ready posted');
+    await page.evaluate(() => window.omniwatch.nativeEvent({ type: 'nativeSettings', launchAtLogin: false, menuBarOnly: true }));
+    await page.keyboard.press('Meta+,');
+    await page.waitForSelector('.ow-settings');
+    const row = page.locator('.ow-settings .ow-set-row', { hasText: 'Launch at login' });
+    check(await row.isVisible(), 'native-only rows visible in the app');
+    check(await page.locator('.ow-switch[aria-label="Menu bar only"]').getAttribute('aria-checked') === 'true', 'nativeSettings reflected');
+    await page.locator('.ow-switch[aria-label="Launch at login"]').click();
+    check(await page.evaluate(() => window.__sent.some((m) => m.type === 'launchAtLogin' && m.value === true)), 'launchAtLogin posted');
+    await page.evaluate(() => window.omniwatch.nativeEvent({ type: 'nativeSettings', launchAtLogin: true, menuBarOnly: true, launchAtLoginError: '' }));
+    check(await page.locator('.ow-switch[aria-label="Launch at login"]').getAttribute('aria-checked') === 'true', 'nativeSettings echo applied');
+    await shot(page, `settings-${scheme}`);
     await context.close();
   }
 

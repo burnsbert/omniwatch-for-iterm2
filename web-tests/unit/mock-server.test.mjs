@@ -273,13 +273,13 @@ test('prefs: bare object, strict atomic validation, partial notifications (§4, 
   for (const k of ['view', 'sort', 'show_dollars', 'sound', 'split_ratio', 'projects_open', 'grid_all', 'usage_strip', 'theme', 'font_scale', 'notifications', 'quick_reply', 'keep_on_top', 'close_window_on_q', 'hint_bar', 'debug_rule', 'onboarding_done']) assert.ok(k in g.body, k);
   const p = await json('/api/v1/prefs', { method: 'PATCH', body: { sort: 'attention', split_ratio: 0.456, font_scale: 1.234 } });
   assert.deepEqual([p.status, p.body.sort, p.body.split_ratio, p.body.font_scale], [200, 'attention', 0.46, 1.23]);
-  for (const bad of [{ theme: 'high-contrast' }, { split_ratio: 0.95 }, { font_scale: 2.5 }, { sound: 1 }, { nope: 1 }, { usage_strip: 'hidden' }, { notifications: { click: 'nowhere' } }]) {
+  for (const bad of [{ theme: 'sepia' }, { split_ratio: 0.95 }, { font_scale: 2.5 }, { sound: 1 }, { nope: 1 }, { usage_strip: 'hidden' }, { notifications: { click: 'nowhere' } }]) {
     assert.equal((await json('/api/v1/prefs', { method: 'PATCH', body: bad })).status, 422, JSON.stringify(bad));
   }
   assert.equal((await json('/api/v1/prefs', { method: 'PATCH', body: { sort: 'path', theme: 'neon' } })).status, 422);
   assert.equal((await json('/api/v1/prefs')).body.sort, 'attention', 'one bad key rejects the whole patch');
   const n = await json('/api/v1/prefs', { method: 'PATCH', body: { notifications: { click: 'show' } } });
-  assert.deepEqual(n.body.notifications, { enabled: true, click: 'show' });
+  assert.deepEqual([n.body.notifications.enabled, n.body.notifications.click], [true, 'show'], 'partial merge keeps the other keys');
   await json('/api/v1/prefs', { method: 'PATCH', body: { notifications: { click: 'goto' }, sort: 'natural' } });
 });
 
@@ -351,6 +351,111 @@ test('demo endpoints: step and scenario validation; the real scenarios (§9)', a
     assert.ok([200, 202].includes((await json(p, { method: 'POST' })).status), p);
   }
   await scenario('default');
+});
+
+test('v1: ribbons, stalled, stats, summary (API.md §5 P1→v1)', async () => {
+  await scenario('default');
+  const st = await state();
+  for (const s of st.sessions) {
+    assert.ok('stalled' in s && 'stalled_since' in s && 'ribbon' in s, s.uid);
+    if (s.ribbon) {
+      assert.equal(s.ribbon.bucket_s, 600);
+      assert.equal(s.ribbon.codes.length, 48);
+      assert.match(s.ribbon.codes, /^[wbiaq-]+$/);
+      assert.equal(s.ribbon.end % 600, 0);
+      assert.ok(s.ribbon.end >= st.server_time && s.ribbon.end - st.server_time <= 600, 'end is the bucket containing server_time');
+    }
+    assert.ok(!s.stalled || (s.state === 'busy' && s.stalled_since), 'stalled only when busy');
+  }
+  assert.ok(st.sessions.some((s) => s.stalled), 'the default demo has a stalled agent');
+  assert.equal(st.summary.stalled, st.sessions.filter((s) => s.stalled).length);
+  for (const k of ['day', 'waiting_seconds', 'longest_wait_s', 'answered', 'waits', 'active']) assert.ok(k in st.stats, k);
+  assert.equal(st.stats.active.length, st.sessions.filter((s) => s.agent && s.state === 'waiting').length);
+  const stats = (await json('/api/v1/stats')).body;
+  assert.equal(stats.waiting_seconds, st.stats.waiting_seconds);
+  const sum = (await json('/api/v1/summary')).body;
+  assert.equal(sum.stalled, st.summary.stalled);
+  assert.ok(sum.stats && 'waiting_seconds' in sum.stats);
+});
+
+test('v1: session history and usage history shapes + hours validation', async () => {
+  const st = await state();
+  const s = st.sessions.find((x) => x.agent);
+  const hist = await json(`/api/v1/sessions/${enc(s.uid)}/history`);
+  assert.equal(hist.status, 200);
+  assert.deepEqual([hist.body.uid, hist.body.hours], [s.uid, 8]);
+  assert.ok(hist.body.segments.length >= 1);
+  assert.equal(hist.body.segments.at(-1).end, null, 'last segment is ongoing');
+  assert.ok(hist.body.segments.every((g) => g.start >= hist.body.from - 1));
+  assert.equal(typeof hist.body.transitions, 'number');
+  assert.equal((await json(`/api/v1/sessions/${enc(s.uid)}/history?hours=2`)).body.hours, 2);
+  assert.equal((await json(`/api/v1/sessions/${enc(s.uid)}/history?hours=9`)).status, 400);
+  assert.equal((await json(`/api/v1/sessions/${enc(s.uid)}/history?hours=x`)).status, 400);
+  assert.equal((await json('/api/v1/sessions/NOPE/history')).status, 404);
+  const uh = await json('/api/v1/usage/history');
+  assert.equal(uh.status, 200);
+  assert.equal(uh.body.hours, 24);
+  const ids = Object.keys(uh.body.limits);
+  assert.ok(ids.includes('claude.five_hour'));
+  const series = uh.body.limits['claude.five_hour'];
+  assert.equal(series.provider, 'claude');
+  assert.ok(series.points.length >= 2 && series.points.every((p) => p.length === 2));
+  assert.ok(series.points.every((p, i, a) => i === 0 || p[0] >= a[i - 1][0]), 'oldest first');
+  assert.ok(series.burn && typeof series.burn.text === 'string');
+  assert.equal((await json('/api/v1/usage/history?hours=169')).status, 400);
+  const lim = st.usage.claude.limits.find((l) => l.id === 'claude.five_hour');
+  assert.ok('burn' in lim);
+});
+
+test('v1: reveal → 202 + action kind reveal; validation order (API.md §4)', async () => {
+  const st = await state();
+  const s = st.sessions.find((x) => x.path);
+  const run = sse((ev) => ev.some((e) => e.event === 'action' && e.data.kind === 'reveal'));
+  await new Promise((r) => setTimeout(r, 300));
+  const r = await json(`/api/v1/sessions/${enc(s.uid)}/reveal`, { method: 'POST', body: { target: 'finder' } });
+  assert.deepEqual([r.status, r.body.ok], [202, true]);
+  const { events } = await run;
+  const ev = events.find((e) => e.event === 'action' && e.data.kind === 'reveal');
+  assert.ok(ev, 'reveal action event');
+  assert.equal(ev.data.detail, `revealed ${s.path_display} in Finder`);
+  const u = enc(s.uid);
+  assert.equal((await json(`/api/v1/sessions/${u}/reveal`, { method: 'POST', body: {} })).status, 400);
+  assert.equal((await json(`/api/v1/sessions/${u}/reveal`, { method: 'POST', body: { target: 'terminal' } })).status, 422);
+  assert.equal((await json('/api/v1/sessions/NOPE/reveal', { method: 'POST', body: { target: 'finder' } })).status, 404);
+  for (const target of ['editor', 'copy_path']) {
+    assert.equal((await json(`/api/v1/sessions/${u}/reveal`, { method: 'POST', body: { target } })).status, 202, target);
+  }
+});
+
+test('v1 prefs: stall_minutes, editor, high-contrast theme, notifications.stall', async () => {
+  const g = (await json('/api/v1/prefs')).body;
+  assert.equal(g.stall_minutes, 10);
+  assert.equal(g.editor, '');
+  assert.equal(g.notifications.stall, true);
+  for (const bad of [{ stall_minutes: 241 }, { stall_minutes: 2.5 }, { stall_minutes: true }, { editor: 'code "unclosed' }, { editor: 'x'.repeat(201) }, { editor: 5 }, { notifications: { stall: 'no' } }]) {
+    assert.equal((await json('/api/v1/prefs', { method: 'PATCH', body: bad })).status, 422, JSON.stringify(bad));
+  }
+  const ok = (await json('/api/v1/prefs', { method: 'PATCH', body: { stall_minutes: 0, editor: 'code -w', theme: 'high-contrast', notifications: { stall: false } } })).body;
+  assert.deepEqual([ok.stall_minutes, ok.editor, ok.theme, ok.notifications.stall, ok.notifications.click], [0, 'code -w', 'high-contrast', false, 'goto']);
+  await json('/api/v1/demo/step', { method: 'POST', body: { seconds: 0 } });
+  assert.ok((await state()).sessions.every((s) => !s.stalled), 'stall_minutes 0 turns stall detection off');
+  await json('/api/v1/prefs', { method: 'PATCH', body: { stall_minutes: 10, editor: '', theme: 'system', notifications: { stall: true } } });
+});
+
+test('v1: a new stall episode sends one `stall` event (API.md §6)', async () => {
+  await scenario('default');
+  await json('/api/v1/prefs', { method: 'PATCH', body: { stall_minutes: 120 } });
+  await json('/api/v1/demo/step', { method: 'POST', body: { seconds: 0 } });
+  assert.ok((await state()).sessions.every((s) => !s.stalled));
+  const run = sse((ev) => ev.some((e) => e.event === 'stall'), { timeoutMs: 6000 });
+  await new Promise((r) => setTimeout(r, 300));
+  await json('/api/v1/prefs', { method: 'PATCH', body: { stall_minutes: 10 } });
+  await json('/api/v1/demo/step', { method: 'POST', body: { seconds: 1 } });
+  const { events } = await run;
+  const stall = events.find((e) => e.event === 'stall');
+  assert.ok(stall, 'stall event');
+  for (const k of ['uid', 'title', 'agent', 'since', 'minutes', 'muted']) assert.ok(k in stall.data, k);
+  assert.equal(stall.data.minutes, 10);
 });
 
 test('mock-only scenarios and timeline (skipped against the real backend)', { skip: REAL }, async () => {

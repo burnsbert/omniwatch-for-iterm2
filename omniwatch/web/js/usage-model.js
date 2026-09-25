@@ -59,6 +59,7 @@ export function limitModel(limit, { now, showDollars }) {
     else if (!showDollars) dollars = { shown: false, text: '$ hidden · press $' };
   }
   return {
+    burn: burnModel(limit.burn),
     id: limit.id,
     label: limit.label || limit.id,
     window: limit.window || '',
@@ -73,6 +74,24 @@ export function limitModel(limit, { now, showDollars }) {
     monthly,
     dollars,
   };
+}
+
+/**
+ * Burn rate (API.md §5 Burn): "At this rate: 100% Today at 11:49am" in the
+ * danger tone when 100 % comes before the reset, muted otherwise.
+ */
+export function burnModel(burn) {
+  if (!burn || !burn.text) return null;
+  let tone = 'muted';
+  if (burn.text === 'limit hit') tone = 'danger';
+  else if (burn.before_reset && burn.eta) tone = 'danger';
+  else if (typeof burn.at_reset_pct === 'number' && burn.at_reset_pct >= 80) tone = 'warn';
+  const rate = typeof burn.rate_per_hour === 'number' && burn.rate_per_hour > 0 ? `+${formatRate(burn.rate_per_hour)}%/h` : '';
+  return { text: capitalize(burn.text), tone, rate, eta: burn.eta || null, beforeReset: !!burn.before_reset };
+}
+
+function formatRate(r) {
+  return r >= 10 ? String(Math.round(r)) : String(Math.round(r * 10) / 10);
 }
 
 function capitalize(s) {

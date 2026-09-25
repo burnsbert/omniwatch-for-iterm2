@@ -36,10 +36,10 @@ function fakeTimers() {
   };
 }
 
-test('EVENT_TYPES covers every §4.4.2 SSE event', () => {
+test('EVENT_TYPES covers every §4.4.2 SSE event plus API.md §6 stats/stall', () => {
   assert.deepEqual(
     [...EVENT_TYPES].sort(),
-    ['action', 'capabilities', 'hello', 'prefs', 'quota', 'screens', 'sessions', 'state', 'toast', 'transition', 'usage'].sort(),
+    ['action', 'capabilities', 'hello', 'prefs', 'quota', 'screens', 'sessions', 'state', 'toast', 'transition', 'usage', 'stats', 'stall'].sort(),
   );
 });
 

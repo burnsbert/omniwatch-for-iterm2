@@ -244,7 +244,8 @@ test('empty states (§2.9, P-54)', () => {
 });
 
 test('summary, title and match count (P-25, P-59)', () => {
-  assert.deepEqual(summaryModel(fixture.summary), { waiting: 2, tabs: 7, agents: 4, busy: 1, text: '7 tabs · 4 agents' });
+  assert.deepEqual(summaryModel(fixture.summary), { waiting: 2, stalled: 0, tabs: 7, agents: 4, busy: 1, text: '7 tabs · 4 agents' });
+  assert.equal(summaryModel({ stalled: 2 }).stalled, 2);
   assert.equal(summaryModel(undefined).text, '0 tabs · 0 agents');
   assert.equal(summaryModel({ tabs: 1, agents: 1 }).text, '1 tab · 1 agent');
   assert.equal(plural(2, 'x'), '2 xs');

@@ -79,6 +79,15 @@ export function createNativeBridge(globalObj = (typeof window !== 'undefined' ? 
     return postMessage({ type: 'restartBackend', demo: !!demo });
   }
 
+  /** Settings toggles (SHELL_CONTRACT §6/§7); native replies with a `nativeSettings` event. */
+  function setLaunchAtLogin(value) {
+    return postMessage({ type: 'launchAtLogin', value: !!value });
+  }
+
+  function setMenuBarOnly(value) {
+    return postMessage({ type: 'menuBarOnly', value: !!value });
+  }
+
   /**
    * Required handshake message (§6): post once `window.omniwatch` (command
    * + nativeEvent) is installed. Native queues any `command`/`nativeEvent`
@@ -153,6 +162,8 @@ export function createNativeBridge(globalObj = (typeof window !== 'undefined' ? 
     setVisible,
     closeWindow,
     restartBackend,
+    setLaunchAtLogin,
+    setMenuBarOnly,
     sendReady,
     registerCommandHandler,
     registerNativeEventHandler,

@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Marks the web UI modules as ES modules for Node (unit tests, dev mock). Not used by the browser."
+}

@@ -27,6 +27,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { formatAbsTime } from '../omniwatch/web/js/format.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..', 'omniwatch', 'web');
@@ -233,7 +234,10 @@ function crcHex(text) {
 }
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
-const nowS = () => Date.now() / 1000;
+// The mock clock: wall time plus whatever /demo/step has advanced (like the
+// real demo clock, API.md §9).
+let clockOffset = 0;
+const nowS = () => Date.now() / 1000 + clockOffset;
 
 function shiftEpochs(obj, delta) {
   // Rebase every epoch-looking number in the fixture onto the current clock.
@@ -257,6 +261,7 @@ function session(base) {
     agent: null, agents: [], state: 'quiet', state_since: nowS() - 600, rule: null, attention: false,
     last_change: nowS() - 600, fresh_until: null, label: '', display_name: 'zsh', title: 'zsh',
     tab_color: null, project: null, muted: false, is_dashboard: false, screen_hash: '', prompt: null,
+    stalled: false, stalled_since: null, ribbon: null,
     ...base,
   };
 }
@@ -293,8 +298,8 @@ function defaultScenario() {
     uid: 'CCCCCCCC-0001-4CCC-8CCC-000000000001', window_id: 311, window_number: 2, tab_index: 4, session_index: 1,
     tab_label: '2.4', tty: '/dev/ttys012', name: '✳ Healthz endpoint', path: '/Users/me/src/api-gateway',
     path_display: '~/src/api-gateway', agent: 'codex', agents: ['codex'], state: 'busy', is_processing: true,
-    state_since: t - 95, last_change: t - 1, display_name: '✳ Healthz endpoint', title: '✳ Healthz endpoint',
-    tab_color: 'blue', project: 1,
+    state_since: t - 21 * 60, last_change: t - 14 * 60, display_name: '✳ Healthz endpoint', title: '✳ Healthz endpoint',
+    tab_color: 'blue', project: 1, _lastScreenChange: t - 14 * 60, // unchanged screen → stalled at start
   }));
   st.sessions.push(session({
     uid: 'CCCCCCCC-0002-4CCC-8CCC-000000000002', window_id: 104, window_number: 1, tab_index: 5, session_index: 1,
@@ -315,6 +320,7 @@ function defaultScenario() {
   put('CCCCCCCC-0001-4CCC-8CCC-000000000001', SCREENS.codexBusy(0));
   put('CCCCCCCC-0002-4CCC-8CCC-000000000002', SCREENS.docs());
   st.iterm.last_poll_at = t;
+  st.stats = { day: localDay(t), waiting_seconds: 4980, longest_wait_s: 780, answered: 14, waits: 16, active: [] };
   recomputeSummary(st);
   return st;
 }
@@ -423,12 +429,123 @@ function recomputeSummary(st) {
     agents: st.sessions.filter((s) => s.agent).length,
     waiting: waiting.length,
     busy: st.sessions.filter((s) => s.state === 'busy').length,
+    stalled: st.sessions.filter((s) => s.stalled).length,
     waiting_uids: waiting.map((s) => s.uid),
   };
   const ids = [...new Set(st.sessions.map((s) => s.window_id))];
   if (st.sessions.length) {
     st.windows = ids.map((id) => ({ id, number: st.sessions.find((s) => s.window_id === id).window_number }));
   }
+}
+
+function localDay(t) {
+  const d = new Date(t * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const STATE_CODE = { waiting: 'w', busy: 'b', idle: 'i', active: 'a', quiet: 'q' };
+const CODE_STATE = { w: 'waiting', b: 'busy', i: 'idle', a: 'active', q: 'quiet' };
+const RIBBON_N = 48;
+const BUCKET = 600;
+
+/** Deterministic 8 h ribbon (API.md §5) ending in the session's live state. */
+function seedRibbon(s) {
+  if (!s.state) return null;
+  let seed = parseInt(crcHex(s.uid), 16) || 7;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const codes = [];
+  if (!s.agent) {
+    const c = STATE_CODE[s.state] || 'q';
+    for (let i = 0; i < RIBBON_N; i += 1) codes.push(i < 6 && rnd() < 0.5 ? '-' : (rnd() < 0.15 ? (c === 'a' ? 'q' : 'a') : c));
+  } else {
+    let cur = 'i';
+    for (let i = 0; i < RIBBON_N; i += 1) {
+      const r = rnd();
+      if (cur === 'b') cur = r < 0.12 ? 'w' : (r < 0.2 ? 'i' : 'b');
+      else if (cur === 'w') cur = r < 0.6 ? 'b' : 'w';
+      else cur = r < 0.3 ? 'b' : 'i';
+      codes.push(cur);
+    }
+  }
+  codes[RIBBON_N - 1] = STATE_CODE[s.state] || 'q';
+  return { end: Math.ceil(nowS() / BUCKET) * BUCKET, bucket_s: BUCKET, codes: codes.join('') };
+}
+
+/** Keep a ribbon current: roll buckets forward and stamp the live state. */
+function touchRibbon(s) {
+  if (!s.state) {
+    s.ribbon = null;
+    return;
+  }
+  if (!s.ribbon) s.ribbon = seedRibbon(s);
+  const end = Math.ceil(nowS() / BUCKET) * BUCKET;
+  let { codes } = s.ribbon;
+  const shift = Math.round((end - s.ribbon.end) / BUCKET);
+  if (shift > 0) codes = (codes + codes.slice(-1).repeat(Math.min(shift, RIBBON_N))).slice(-RIBBON_N);
+  const c = STATE_CODE[s.state] || 'q';
+  const last = codes.slice(-1);
+  // The live bucket shows the state that "held longest"; a waiting/busy flip wins (ties w > b > …).
+  const rank = 'wbiaq-';
+  if (rank.indexOf(c) < rank.indexOf(last) || shift > 0) codes = codes.slice(0, -1) + c;
+  s.ribbon = { end, bucket_s: BUCKET, codes };
+}
+
+/** GET /sessions/{uid}/history from the ribbon (API.md §5 History shape). */
+function historyFor(s, hours) {
+  const to = nowS();
+  const from = to - hours * 3600;
+  const r = s.ribbon || seedRibbon(s) || { end: to, codes: '' };
+  const segs = [];
+  Array.from(r.codes).forEach((c, i) => {
+    const start = r.end - (r.codes.length - i) * BUCKET;
+    const end = start + BUCKET;
+    if (end <= from || c === '-') return;
+    const state = CODE_STATE[c];
+    const last = segs[segs.length - 1];
+    if (last && last.state === state && last.end === Math.max(from, start)) last.end = Math.min(to, end);
+    else segs.push({ state, start: Math.max(from, start), end: Math.min(to, end) });
+  });
+  if (segs.length) segs[segs.length - 1].end = null;
+  const totals = {};
+  for (const seg of segs) {
+    const k = seg.state || 'unknown';
+    totals[k] = (totals[k] || 0) + ((seg.end == null ? to : seg.end) - seg.start);
+  }
+  return { uid: s.uid, from, to, hours, segments: segs, totals, transitions: Math.max(0, segs.length - 1) };
+}
+
+const WINDOW_S = { '5h': 5 * 3600, '7d': 7 * 86400, month: 30 * 86400 };
+
+/** Sawtooth usage points ending at the live percentage, plus Burn (API.md §5). */
+function usageSeries(limit, now, hours) {
+  const L = WINDOW_S[limit.window] || 7 * 86400;
+  const cur = Number(limit.pct) || 0;
+  const elapsed = Math.min(L * 0.8, { '5h': 3 * 3600, '7d': 36 * 3600, month: 20 * 86400 }[limit.window] || 36 * 3600);
+  const s0 = now - elapsed;
+  const pts = [];
+  for (let t = now - hours * 3600; t <= now + 1; t += 900) {
+    const v = t >= s0 ? cur * ((t - s0) / Math.max(1, now - s0)) : 70 * ((((t - (s0 - L)) % L) + L) % L) / L;
+    pts.push([Math.round(t), Math.round(Math.max(0, v) * 10) / 10]);
+  }
+  pts[pts.length - 1] = [Math.round(now), cur];
+  const rate = cur / Math.max(1 / 60, (now - s0) / 3600);
+  const base = { rate_per_hour: Math.round(rate * 100) / 100, eta: null, before_reset: false, at_reset_pct: null };
+  let burn;
+  if (cur >= 100) burn = { ...base, text: 'limit hit' };
+  else if (rate <= 0) burn = { ...base, rate_per_hour: 0, text: 'not rising' };
+  else {
+    const eta = Math.round(now + ((100 - cur) / rate) * 3600);
+    if (!limit.resets_at || eta < limit.resets_at) {
+      burn = { ...base, eta, before_reset: true, text: `at this rate: 100% ${formatAbsTime(new Date(eta * 1000), new Date(now * 1000))}` };
+    } else {
+      const atReset = Math.round((cur + rate * ((limit.resets_at - now) / 3600)) * 10) / 10;
+      burn = { ...base, at_reset_pct: atReset, text: `at this rate: ~${Math.round(atReset)}% at reset` };
+    }
+  }
+  return { points: pts, burn };
 }
 
 function diagnosticsFor(st) {
@@ -467,7 +584,9 @@ const ROUTES = [
   ['POST', '/api/v1/sessions/{uid}/goto', 'goto'], ['POST', '/api/v1/sessions/{uid}/visit', 'visit'],
   ['PUT', '/api/v1/sessions/{uid}/label', 'label'], ['PUT', '/api/v1/sessions/{uid}/color', 'color'],
   ['PUT', '/api/v1/sessions/{uid}/mute', 'mute'], ['POST', '/api/v1/sessions/{uid}/close', 'close'],
-  ['POST', '/api/v1/sessions/{uid}/reply', 'reply'], ['POST', '/api/v1/tabs/new', 'new_tab'],
+  ['POST', '/api/v1/sessions/{uid}/reply', 'reply'], ['POST', '/api/v1/sessions/{uid}/reveal', 'reveal'],
+  ['GET', '/api/v1/sessions/{uid}/history', 'history'], ['GET', '/api/v1/usage/history', 'usage_history'],
+  ['GET', '/api/v1/stats', 'stats'], ['POST', '/api/v1/tabs/new', 'new_tab'],
   ['POST', '/api/v1/iterm/launch', 'launch'], ['POST', '/api/v1/refresh', 'refresh'],
   ['GET', '/api/v1/prefs', 'get_prefs'], ['PATCH', '/api/v1/prefs', 'patch_prefs'],
   ['PUT', '/api/v1/projects/{slot}', 'set_project'], ['DELETE', '/api/v1/projects', 'clear_projects'],
@@ -508,15 +627,40 @@ const range = (lo, hi) => (v) => isNum(v) && v >= lo && v <= hi;
 const PREF_RULES = {
   view: choice('split', 'list', 'grid'), sort: choice('natural', 'attention', 'agents', 'activity', 'path'),
   show_dollars: isBool, sound: isBool, split_ratio: range(0.2, 0.8), projects_open: isBool, grid_all: isBool,
-  usage_strip: choice('expanded', 'collapsed'), theme: choice('system', 'dark', 'light'), font_scale: range(0.5, 2.0),
+  usage_strip: choice('expanded', 'collapsed'), theme: choice('system', 'dark', 'light', 'high-contrast'), font_scale: range(0.5, 2.0),
   notifications: (v) => !!v && typeof v === 'object' && !Array.isArray(v), quick_reply: isBool, keep_on_top: isBool,
   close_window_on_q: isBool, hint_bar: isBool, debug_rule: isBool, onboarding_done: isBool,
+  stall_minutes: (v) => Number.isInteger(v) && typeof v !== 'boolean' && v >= 0 && v <= 240,
+  editor: (v) => typeof v === 'string' && v.length <= 200 && !CONTROL.test(v) && shlexOk(v),
 };
-const NOTIFICATION_RULES = { enabled: isBool, click: choice('goto', 'show') };
+const NOTIFICATION_RULES = { enabled: isBool, click: choice('goto', 'show'), stall: isBool };
+
+/** Would Python's shlex.split accept it? (balanced quotes, no trailing escape) */
+function shlexOk(v) {
+  let q = null;
+  for (let i = 0; i < v.length; i += 1) {
+    const c = v[i];
+    if (c === '\\' && q !== "'") {
+      if (i === v.length - 1) return false;
+      i += 1;
+    } else if (q) {
+      if (c === q) q = null;
+    } else if (c === '"' || c === "'") q = c;
+  }
+  return q === null;
+}
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
 
 /** engine.clean_text: str, ≤ max, no control characters (except \n when allowed). */
+function hoursParam(url, dflt, max) {
+  const raw = url.searchParams.get('hours');
+  if (raw === null) return dflt;
+  const h = Number(raw);
+  if (!Number.isFinite(h) || h <= 0 || h > max) throw bad(`hours must be in (0, ${max}]`);
+  return h;
+}
+
 function cleanText(value, what, max, allowNewline = false) {
   if (typeof value !== 'string') throw bad(`${what} must be a string`);
   if ([...value].length > max) throw invalid(`${what} is longer than ${max} characters`);
@@ -533,7 +677,10 @@ export async function startMockServer({
   // resets, as in the real engine (API.md §9).
   const seed = scenario(scenarioName);
   const store = {
-    prefs: { ...seed.prefs, onboarding_done: false },
+    prefs: {
+      ...seed.prefs, onboarding_done: false, stall_minutes: 10, editor: '',
+      notifications: { enabled: true, click: 'goto', stall: true },
+    },
     projects: seed.projects.map((p) => ({ ...p })),
     labels: {},
     muted: {},
@@ -563,7 +710,41 @@ export async function startMockServer({
     // Seeded scenario labels are re-applied on every reset and win (API.md §9).
     for (const s of st.sessions) if (s.label) store.labels[s.uid] = s.label;
     for (const s of st.sessions) applyStore(s);
+    for (const s of st.sessions) {
+      s.ribbon = seedRibbon(s);
+      if (s._lastScreenChange === undefined) s._lastScreenChange = s.last_change || nowS();
+    }
+    if (!st.stats) st.stats = { day: localDay(nowS()), waiting_seconds: 0, longest_wait_s: 0, answered: 0, waits: 0, active: [] };
+    st.stats.active = st.sessions.filter((s) => s.agent && s.state === 'waiting')
+      .sort((a, b) => a.state_since - b.state_since).map((s) => ({ uid: s.uid, since: s.state_since }));
+    updateStalls([], true);
+    for (const block of Object.values(st.usage || {})) {
+      for (const l of (block && block.limits) || []) l.burn = usageSeries(l, nowS(), 2).burn;
+    }
     recomputeSummary(st);
+  }
+
+  /**
+   * stalled = busy and the screen unchanged for ≥ stall_minutes (0 = off).
+   * A `stall` event goes out once per episode, never for sessions already
+   * stalled at load (API.md §5/§6).
+   */
+  function updateStalls(pendingStalls, initial = false) {
+    const mins = store.prefs.stall_minutes;
+    let changed = false;
+    for (const s of st.sessions) {
+      const since = s._lastScreenChange || s.last_change || nowS();
+      const stalled = !!(mins > 0 && s.state === 'busy' && nowS() - since >= mins * 60);
+      if (stalled !== !!s.stalled) {
+        changed = true;
+        if (stalled && !initial) {
+          pendingStalls.push({ uid: s.uid, title: s.title, agent: s.agent, since, minutes: mins, muted: !!s.muted });
+        }
+      }
+      s.stalled = stalled;
+      s.stalled_since = stalled ? since : null;
+    }
+    return changed;
   }
   function applyStore(s) {
     if (Object.prototype.hasOwnProperty.call(store.labels, s.uid)) s.label = store.labels[s.uid];
@@ -609,6 +790,7 @@ export async function startMockServer({
     const hash = crcHex(text);
     st.screens[uid] = { hash, text };
     const s = st.sessions.find((x) => x.uid === uid);
+    if (s && s.screen_hash !== hash) s._lastScreenChange = nowS();
     if (s) s.screen_hash = hash;
     return { [uid]: { hash, text } };
   }
@@ -617,16 +799,42 @@ export async function startMockServer({
   }
   // A publish is sessions → screens → transitions (API.md §6 ordering).
   function transition(s, from, to, pending) {
+    const t = nowS();
+    if (s.agent && to === 'waiting' && from !== 'waiting') {
+      st.stats.waits += 1;
+      st.stats.active.push({ uid: s.uid, since: t });
+      statsDirty = true;
+    } else if (s.agent && from === 'waiting' && to !== 'waiting') {
+      const a = st.stats.active.find((x) => x.uid === s.uid);
+      if (a) {
+        const d = Math.max(0, t - a.since);
+        st.stats.waiting_seconds = Math.round(st.stats.waiting_seconds + d);
+        st.stats.longest_wait_s = Math.max(st.stats.longest_wait_s, Math.round(d));
+        st.stats.answered += 1;
+        st.stats.active = st.stats.active.filter((x) => x.uid !== s.uid);
+        statsDirty = true;
+      }
+    }
     s.state = to;
-    s.state_since = nowS();
+    s.state_since = t;
     s.attention = to === 'waiting';
     s.fresh_until = null;
     pending.push({ uid: s.uid, from, to, at: nowS(), title: s.title, agent: s.agent, prompt: s.prompt, muted: s.muted });
   }
+  let statsDirty = false;
+  // Order within one publish: sessions, screens, stats, transitions, stalls (API.md §6).
   function publish({ screens = null, removed = [], transitions = [], sessions = true } = {}) {
-    if (sessions) pushSessions();
+    const stalls = [];
+    for (const s of st.sessions) touchRibbon(s);
+    const stallChanged = updateStalls(stalls);
+    if (sessions || stallChanged || transitions.length) pushSessions();
     if ((screens && Object.keys(screens).length) || removed.length) pushScreens(screens || {}, removed);
+    if (statsDirty) {
+      statsDirty = false;
+      broadcast('stats', eventData({ stats: st.stats }));
+    }
     for (const t of transitions) broadcast('transition', t);
+    for (const x of stalls) broadcast('stall', x);
   }
   function action(kind, uid, detail, ok = true, delay = 250) {
     const id = `a-${++actionSeq}`;
@@ -637,6 +845,9 @@ export async function startMockServer({
   }
   function usageForPrefs() {
     const u = clone(st.usage);
+    for (const block of Object.values(u)) {
+      for (const l of (block && block.limits) || []) l.burn = usageSeries(l, nowS(), 2).burn;
+    }
     const lim = u.claude && u.claude.limits ? u.claude.limits.find((l) => l.id === 'claude.monthly') : null;
     if (lim) lim.limit_display = store.prefs.show_dollars ? '$200' : null;
     return u;
@@ -694,7 +905,8 @@ export async function startMockServer({
         sessionsChanged = true;
       }
     }
-    if (cx && cx.state === 'busy') {
+    // cx (CCCC-0001) keeps a frozen screen: it's the demo's stalled agent.
+    if (cx && cx.state === 'busy' && cx._animate) {
       Object.assign(screens, setScreen(cx.uid, SCREENS.codexBusy(frame)));
       cx.last_change = nowS();
       sessionsChanged = true;
@@ -771,7 +983,9 @@ export async function startMockServer({
       const waiting = st.sessions.filter((x) => x.state === 'waiting').sort((a, b) => a.state_since - b.state_since);
       return [200, {
         tabs: st.summary.tabs, agents: st.summary.agents, waiting: st.summary.waiting, busy: st.summary.busy,
+        stalled: st.summary.stalled,
         waiting_sessions: waiting.map((x) => ({ uid: x.uid, title: x.title, since: x.state_since, agent: x.agent })),
+        stats: st.stats,
       }];
     },
     diagnostics: () => [200, diagnosticsFor(st)],
@@ -786,6 +1000,34 @@ export async function startMockServer({
         });
       }
       return [202, { ok: true, action_id: id }];
+    },
+    stats: () => [200, st.stats],
+    history: ({ uid }, _b, url) => {
+      const hours = hoursParam(url, 8, 8);
+      return [200, historyFor(requireSession(uid), hours)];
+    },
+    usage_history: (_p, _b, url) => {
+      const hours = hoursParam(url, 24, 168);
+      const now = nowS();
+      const limits = {};
+      for (const [provider, block] of Object.entries(st.usage || {})) {
+        if (!block || !['ok', 'stale'].includes(block.status)) continue;
+        for (const l of block.limits || []) {
+          const series = usageSeries(l, now, hours);
+          limits[l.id] = { provider, points: series.points, latest: { t: now, pct: l.pct, resets_at: l.resets_at }, burn: series.burn };
+        }
+      }
+      return [200, { from: now - hours * 3600, to: now, hours, limits }];
+    },
+    reveal: ({ uid }, body) => {
+      if (typeof body.target !== 'string') throw bad('target must be a string');
+      if (!['finder', 'editor', 'copy_path'].includes(body.target)) throw invalid('target must be one of finder, editor, copy_path');
+      const s = requireSession(uid);
+      if (!s.path) throw invalid('no known path for this session');
+      const shown = s.path_display || s.path;
+      const editor = (store.prefs.editor || 'code').split(/\s+/)[0].split('/').pop();
+      const detail = { finder: `revealed ${shown} in Finder`, editor: `opened ${shown} in ${editor}`, copy_path: `copied ${shown}` }[body.target];
+      return [202, { ok: true, action_id: action('reveal', uid, detail, true, 150) }];
     },
     goto: ({ uid }) => {
       const s = requireSession(uid);
@@ -947,6 +1189,7 @@ export async function startMockServer({
       const rule = 'debug_rule' in updates && updates.debug_rule !== store.prefs.debug_rule;
       Object.assign(store.prefs, updates);
       st.prefs = store.prefs;
+      if ('stall_minutes' in updates) later(0, () => publish({ sessions: false }));
       if (rule) {
         st.sessions.forEach(applyStore);
         pushSessions();
@@ -996,8 +1239,10 @@ export async function startMockServer({
       const seconds = 'seconds' in body ? body.seconds : 0;
       if (!isNum(seconds) || typeof seconds === 'boolean') throw bad('seconds must be a number');
       if (seconds < 0 || seconds > 86400) throw invalid('seconds must be between 0 and 86400');
-      const n = Math.round(seconds);
+      clockOffset += seconds;
+      const n = Math.min(60, Math.round(seconds));
       for (let i = 0; i < n; i += 1) tick();
+      if (!n) publish({ sessions: false });
       return [200, { ok: true, seq }];
     },
     demo_scenario: (_p, body) => {
@@ -1055,7 +1300,7 @@ export async function startMockServer({
         return;
       }
       const body = req.method === 'GET' ? {} : await readBody(req);
-      const [status, out] = routes[name](params, body);
+      const [status, out] = routes[name](params, body, url);
       sendJson(res, status, out);
     } catch (e) {
       if (e instanceof ApiError) sendError(res, e);

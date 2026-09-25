@@ -28,6 +28,11 @@ export function contextMenuItems(s, { projects = [], tabColors = null, reply = f
     { id: 'zoom.toggle', label: 'Zoom', icon: 'zoom', kbd: 'Space', select: true },
   ];
   if (reply) items.push({ id: 'reply.focus', label: 'Reply…', icon: 'send', kbd: 'i', select: true });
+  items.push({ id: 'history.open', label: 'Activity timeline', icon: 'history', kbd: 'T', args });
+  items.push({ sep: true, heading: 'Open in' });
+  items.push({ id: 'reveal.editor', label: 'Editor', icon: 'code', kbd: 'E', args, disabled: !s.path });
+  items.push({ id: 'reveal.finder', label: 'Finder', icon: 'folder', kbd: 'O', args, disabled: !s.path });
+  items.push({ id: 'reveal.copyPath', label: 'Copy path', icon: 'copy', kbd: 'Y', args, disabled: !s.path });
   items.push({ sep: true });
   items.push({ id: 'label.edit', label: s.label ? 'Edit label…' : 'Add label…', icon: 'tag', kbd: 'L', args });
   items.push({ id: 'session.mute.toggle', label: s.muted ? 'Unmute' : 'Mute', icon: s.muted ? 'bell' : 'bellOff', args });

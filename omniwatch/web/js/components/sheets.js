@@ -94,10 +94,12 @@ function toggle(ctx, { label, hint, get, onChange, disabled }) {
   const labelEl = h('span', { class: 'ow-set-label' }, label);
   const hintEl = h('span', { class: 'ow-set-hint' }, hint || '');
   const row = h('div', { class: 'ow-set-row' }, [h('div', { class: 'ow-set-text' }, [labelEl, hintEl]), sw]);
-  sw.addEventListener('click', () => onChange(!get()));
+  let lastFrame = null; // getters read the frame (prefs, ui.nativeSettings); clicks reuse the latest one
+  sw.addEventListener('click', () => onChange(!get(lastFrame)));
   return {
     el: row,
     update(f) {
+      lastFrame = f;
       const on = !!get(f);
       attr(sw, 'aria-checked', on ? 'true' : 'false');
       attr(sw, 'aria-label', label);
@@ -156,6 +158,9 @@ export function createSettingsSheet(ctx) {
     permBtn,
   ]);
   const version = h('span', { class: 'ow-set-hint' });
+  const stallRow = stallControl(ctx, prefs, patch);
+  const editorRow = editorControl(ctx, prefs, patch);
+  const appGroup = h('h3', { class: 'ow-set-group' }, 'App');
 
   const body = h('div', { class: 'ow-sheet-body ow-settings' }, [
     h('h3', { class: 'ow-set-group' }, 'Appearance'),
@@ -170,6 +175,17 @@ export function createSettingsSheet(ctx) {
     })),
     scaleRow,
     add(toggle(ctx, { label: 'Show shortcut hints', hint: 'A hint bar with the keys that apply right now', get: (f) => prefs(f).hint_bar !== false, onChange: (v) => patch({ hint_bar: v }) })),
+    appGroup,
+    add(toggle(ctx, {
+      label: 'Launch at login', hint: 'Start Omniwatch in the menu bar when you log in',
+      get: (f) => !!(f.ui.nativeSettings && f.ui.nativeSettings.launchAtLogin),
+      onChange: (v) => ctx.run('nativeSettings.launchAtLogin', { value: v }),
+    })),
+    add(toggle(ctx, {
+      label: 'Menu bar only', hint: 'Hide the Dock icon; the menu-bar counter stays',
+      get: (f) => !!(f.ui.nativeSettings && f.ui.nativeSettings.menuBarOnly),
+      onChange: (v) => ctx.run('nativeSettings.menuBarOnly', { value: v }),
+    })),
     h('h3', { class: 'ow-set-group' }, 'Window'),
     add(toggle(ctx, {
       label: 'Keep window on top', hint: native ? 'Float above iTerm2 as a companion window (⌥⌘T)' : 'Available in the Omniwatch app',
@@ -199,6 +215,14 @@ export function createSettingsSheet(ctx) {
       hint: 'Answer an agent’s prompt without switching tabs. Only for waiting agents, and only if the screen hasn’t changed since you looked.',
       get: (f) => prefs(f).quick_reply !== false, onChange: () => ctx.run('quickReply.toggle'),
     })),
+    h('h3', { class: 'ow-set-group' }, 'Agents'),
+    stallRow.el,
+    add(toggle(ctx, {
+      label: 'Stall notifications', hint: 'Notify when a busy agent may be stuck',
+      get: (f) => (prefs(f).notifications || {}).stall !== false,
+      onChange: (v) => patch({ notifications: { ...(prefs().notifications || {}), stall: v } }),
+    })),
+    editorRow.el,
     h('h3', { class: 'ow-set-group' }, 'Usage'),
     add(toggle(ctx, { label: 'Show dollar amounts', hint: 'Claude monthly limit in dollars ($)', get: (f) => !!prefs(f).show_dollars, onChange: () => ctx.run('dollars.toggle') })),
     add(toggle(ctx, { label: 'Expanded usage strip', hint: 'Show every limit at the bottom of the window', get: (f) => prefs(f).usage_strip !== 'collapsed', onChange: () => ctx.run('usageStrip.toggle') })),
@@ -214,8 +238,23 @@ export function createSettingsSheet(ctx) {
   ]);
   const el = h('div', { class: 'ow-sheet' }, [sheetHeader(ctx, 'Settings', 'gear'), body]);
 
+  // Native-only rows (SHELL_CONTRACT §6): shown only inside the app shell.
+  const nativeRows = controls.filter((c) => /Launch at login|Menu bar only/.test(c.el.textContent)).map((c) => c.el);
+  const stallToggle = controls.find((c) => /Stall notifications/.test(c.el.textContent));
+  const nativeError = h('p', { class: 'ow-set-error', hidden: true });
+  if (nativeRows.length) nativeRows[nativeRows.length - 1].after(nativeError);
+
   function update(f) {
     controls.forEach((c) => c.update(f));
+    appGroup.hidden = !native;
+    nativeRows.forEach((r) => { r.hidden = !native; });
+    const err = native && f.ui.nativeSettings && f.ui.nativeSettings.launchAtLoginError;
+    nativeError.hidden = !err;
+    if (err) text(nativeError, `Launch at login: ${err}`);
+    // Only when the backend knows notifications.stall (API.md; older backends reject it).
+    if (stallToggle) stallToggle.el.hidden = !('stall' in (prefs(f).notifications || {}));
+    stallRow.update(f);
+    editorRow.update(f);
     text(scaleText, `${Math.round((prefs(f).font_scale || 1) * 100)}%`);
     const st = native ? f.ui.notifyPermission : (typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
     const label = {
@@ -227,6 +266,74 @@ export function createSettingsSheet(ctx) {
     text(version, `Version ${f.server.version || '—'}${f.server.demo ? ' · demo mode' : ''}${native ? ' · app' : ' · browser'}`);
   }
   return { el, update, label: 'Settings', size: 'sheet' };
+}
+
+const STALL_CHOICES = [0, 5, 10, 15, 20, 30, 45, 60];
+
+/** `stall_minutes` (0–240, 0 = off) as a select; unusual values are kept as an option. */
+function stallControl(ctx, prefs, patch) {
+  const select = h('select', { class: 'ow-select', 'aria-label': 'Stall detection' });
+  select.addEventListener('change', () => patch({ stall_minutes: Number(select.value) }));
+  const row = h('div', { class: 'ow-set-row' }, [
+    h('div', { class: 'ow-set-text' }, [h('span', { class: 'ow-set-label' }, 'Stall detection'),
+      h('span', { class: 'ow-set-hint' }, 'Flag busy agents whose screen hasn’t changed for this long')]),
+    select,
+  ]);
+  let lastKey = '';
+  return {
+    el: row,
+    update(f) {
+      const cur = prefs(f).stall_minutes;
+      row.hidden = cur === undefined;
+      const values = [...new Set([...STALL_CHOICES, cur].filter((v) => typeof v === 'number'))].sort((a, b) => a - b);
+      const key = `${values.join(',')}:${cur}`;
+      if (key === lastKey) return;
+      lastKey = key;
+      while (select.firstChild) select.removeChild(select.firstChild);
+      for (const v of values) {
+        select.appendChild(h('option', { value: String(v), selected: v === cur || undefined }, v === 0 ? 'Off' : `After ${v} min`));
+      }
+      select.value = String(cur);
+    },
+  };
+}
+
+/** `editor` pref (≤200 chars, shlex-splittable; "" = auto). Saved on ⏎ or blur. */
+function editorControl(ctx, prefs, patch) {
+  const input = h('input', {
+    class: 'ow-text-field', type: 'text', spellcheck: 'false', autocomplete: 'off', maxlength: '200',
+    placeholder: 'Auto ($VISUAL, $EDITOR, code)', 'aria-label': 'Editor command',
+  });
+  const save = async () => {
+    const v = input.value.trim();
+    if (v === (prefs().editor || '')) return;
+    const ok = await patch({ editor: v });
+    if (ok === false) input.value = prefs().editor || '';
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      save();
+    } else if (e.key === 'Escape') {
+      input.value = prefs().editor || '';
+      input.blur();
+    }
+  });
+  input.addEventListener('blur', save);
+  const row = h('div', { class: 'ow-set-row ow-set-row-field' }, [
+    h('div', { class: 'ow-set-text' }, [h('span', { class: 'ow-set-label' }, 'Editor'),
+      h('span', { class: 'ow-set-hint' }, 'For “Open in editor” (e), e.g. code -w, zed, cursor')]),
+    input,
+  ]);
+  return {
+    el: row,
+    update(f) {
+      const cur = prefs(f).editor;
+      row.hidden = cur === undefined;
+      if (document.activeElement !== input && input.value !== (cur || '')) input.value = cur || '';
+    },
+  };
 }
 
 // ------------------------------------------------------------ onboarding

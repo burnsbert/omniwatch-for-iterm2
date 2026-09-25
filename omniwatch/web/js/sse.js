@@ -13,6 +13,8 @@
 export const EVENT_TYPES = [
   'hello', 'state', 'sessions', 'screens', 'usage', 'prefs',
   'transition', 'toast', 'action', 'quota', 'capabilities',
+  // API.md §6 (P1→v1): blocked-on-you stats and stall notices.
+  'stats', 'stall',
 ];
 
 export const DEFAULT_BACKOFF_MS = [500, 1000, 2000, 4000, 8000];

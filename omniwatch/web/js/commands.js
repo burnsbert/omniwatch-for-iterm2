@@ -56,6 +56,10 @@ export const COMMANDS = Object.freeze([
   { id: 'reply.send.8', title: 'Send reply option 8', category: 'Act' },
   { id: 'reply.send.9', title: 'Send reply option 9', category: 'Act' },
   { id: 'refresh', title: 'Refresh', category: 'Act' },
+  { id: 'reveal.editor', title: 'Open in editor', category: 'Act' },
+  { id: 'reveal.finder', title: 'Reveal in Finder', category: 'Act' },
+  { id: 'reveal.copyPath', title: 'Copy path', category: 'Act' },
+  { id: 'history.open', title: 'Activity timeline (8 h)', category: 'View' },
 
   // View
   { id: 'view.cycle', title: 'Cycle view', category: 'View' },

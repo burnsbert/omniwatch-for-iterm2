@@ -35,6 +35,7 @@ export const EXTRA_ACTIONS = Object.freeze([
   { id: 'notifications.toggle', title: 'Turn notifications on / off', category: 'System' },
   { id: 'debugRule.toggle', title: 'Show classifier rule in preview', category: 'System' },
   { id: 'onboarding.open', title: 'Setup guide', category: 'System' },
+  { id: 'stats.open', title: 'Blocked on you today', category: 'View' },
   { id: 'iterm.launch', title: 'Launch iTerm2', category: 'Act' },
   ...SORT_CYCLE.map((s) => ({ id: `sort.set.${s}`, title: `Sort: ${s}`, category: 'View' })),
 ]);

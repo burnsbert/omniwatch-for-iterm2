@@ -30,6 +30,8 @@ function setup({ width = 1400, native = false, server: serverPatch = {}, ui: uiP
     setKeepOnTop: (v) => nativeCalls.push(['keepOnTop', v]),
     requestNotifyPermission: () => nativeCalls.push(['notifyPermission']),
     restartBackend: (d) => nativeCalls.push(['restartBackend', d]),
+    setLaunchAtLogin: (v) => nativeCalls.push(['launchAtLogin', v]),
+    setMenuBarOnly: (v) => nativeCalls.push(['menuBarOnly', v]),
   };
   let nowMs = 1_000_000;
   const env = {
@@ -487,16 +489,29 @@ test('usage view, text size, themes, palette, settings, help, onboarding (P-70, 
     assert.equal(t.server.prefs.theme, th);
     assert.equal(t.ui.highContrast, false);
   }
-  // high contrast is client-local: the API only accepts system|dark|light (API.md §4)
-  const patches = t.calls.filter((c) => c[0] === 'patchPrefs').length;
-  assert.equal(t.ctl.run('theme.high-contrast'), true);
-  assert.equal(t.ui.highContrast, true);
-  assert.equal(t.server.prefs.theme, 'system', 'server theme untouched');
-  assert.equal(t.calls.filter((c) => c[0] === 'patchPrefs').length, patches, 'no PATCH for high contrast');
-  assert.deepEqual(t.local, { 'omniwatch.highContrast': '1' });
+  // high contrast: a real pref when the backend accepts it …
+  await t.ctl.run('theme.high-contrast');
+  assert.deepEqual(t.calls.at(-1), ['patchPrefs', { theme: 'high-contrast' }]);
+  assert.equal(t.server.prefs.theme, 'high-contrast');
+  assert.deepEqual(t.local, { 'omniwatch.highContrast': '' });
   await t.ctl.run('theme.dark');
   assert.equal(t.ui.highContrast, false);
-  assert.deepEqual(t.local, { 'omniwatch.highContrast': '' });
+  // … and a client-local override when it answers 422 (older backends).
+  const old = setup({ apiOverrides: { patchPrefs: (p) => (p.theme === 'high-contrast'
+    ? Promise.reject(Object.assign(new Error('bad value for theme'), { status: 422, code: 'invalid' }))
+    : Promise.resolve({ ok: true })) } });
+  await old.ctl.run('theme.high-contrast');
+  assert.equal(old.ui.highContrast, true);
+  assert.equal(old.server.prefs.theme, 'system', 'server theme untouched');
+  assert.deepEqual(old.local, { 'omniwatch.highContrast': '1' });
+  assert.equal(old.ui.toasts.length, 0, 'fallback is silent');
+  const broken = setup({ apiOverrides: { patchPrefs: () => Promise.reject(Object.assign(new Error('down'), { status: 503 })) } });
+  assert.equal(await broken.ctl.run('theme.high-contrast'), false);
+  assert.equal(broken.ui.highContrast, false);
+  assert.equal(broken.toasts().at(-1), 'settings failed: down');
+  const bare = setup({ apiOverrides: { patchPrefs: () => Promise.resolve({ ...fixture.prefs, theme: 'high-contrast' }) } });
+  await bare.ctl.run('theme.high-contrast');
+  assert.equal(bare.server.prefs.theme, 'high-contrast', 'bare prefs response');
   await t.ctl.run('theme.set', { theme: 'light' });
   assert.equal(t.server.prefs.theme, 'light');
   assert.equal(t.ctl.run('theme.set', { theme: 'neon' }), true);
@@ -626,4 +641,73 @@ test('action failures toast "{kind} failed: {detail}" (P-71); other events ignor
   assert.equal(t.ui.toasts.length, n);
   t.ctl.onServerEvent({ type: 'toast', data: { level: 'warn', message: 'hey' } });
   assert.equal(t.ui.toasts.at(-1).level, 'warn');
+});
+
+test('v1 reveal: e/o/y send the target; result toasts from the action event; 422 warns (API.md reveal)', async () => {
+  const t = setup();
+  t.ctl.syncSelection();
+  const uid = t.server.sessions[0].uid;
+  await t.ctl.run('reveal.editor');
+  await t.ctl.run('reveal.finder', { uid });
+  await t.ctl.run('reveal.copyPath');
+  await t.ctl.run('session.reveal', { uid, target: 'finder' });
+  assert.deepEqual(t.calls.filter((c) => c[0] === 'reveal').map((c) => c[2]), ['editor', 'finder', 'copy_path', 'finder']);
+  assert.equal(t.ui.toasts.length, 0, '202 alone shows nothing');
+  t.ctl.onServerEvent({ type: 'action', data: { kind: 'reveal', ok: true, detail: 'revealed ~/src/api in Finder' } });
+  assert.equal(t.toasts().at(-1), 'revealed ~/src/api in Finder');
+  t.ctl.onServerEvent({ type: 'action', data: { kind: 'reveal', ok: false, detail: 'not found: subl' } });
+  assert.equal(t.toasts().at(-1), 'reveal failed: not found: subl');
+  t.ctl.onServerEvent({ type: 'action', data: { kind: 'goto', ok: true, detail: '→ tab 1' } });
+  assert.equal(t.toasts().at(-1), 'reveal failed: not found: subl', 'other successes are toasted locally, not from the event');
+  const np = setup({ apiOverrides: { reveal: () => Promise.reject(Object.assign(new Error('no known path for this session'), { status: 422 })) } });
+  np.ctl.syncSelection();
+  assert.equal(await np.ctl.run('reveal.finder'), false);
+  assert.deepEqual([np.toasts().at(-1), np.ui.toasts.at(-1).level], ['no known path for this session', 'warn']);
+  const e5 = setup({ apiOverrides: { reveal: () => Promise.reject(Object.assign(new Error('boom'), { status: 500 })) } });
+  e5.ctl.syncSelection();
+  await e5.ctl.run('reveal.editor');
+  assert.equal(e5.toasts().at(-1), 'reveal failed: boom');
+  const none = setup({ server: { sessions: [] } });
+  assert.equal(await none.ctl.run('reveal.editor'), false);
+});
+
+test('v1 activity + stats sheets open as modals and load the history', () => {
+  const t = setup();
+  t.ctl.syncSelection();
+  t.ctl.run('history.open');
+  assert.deepEqual(t.ui.modal, { type: 'history', uid: t.server.sessions[0].uid });
+  t.ctl.run('stats.open');
+  assert.deepEqual(t.ui.modal, { type: 'stats' });
+  t.ctl.run('history.open', { uid: 'X' });
+  assert.equal(t.ui.modal.uid, 'X');
+  const none = setup({ server: { sessions: [] } });
+  none.ctl.run('history.open');
+  assert.equal(none.ui.modal, null);
+});
+
+test('v1 stall event toasts unless muted or stall detection is off (API.md §6)', () => {
+  const t = setup();
+  t.ctl.onServerEvent({ type: 'stall', data: { uid: 'u1', title: 'web-app', since: fixture.server_time - 14 * 60, minutes: 10, muted: false } });
+  assert.equal(t.toasts().at(-1), 'web-app may be stalled — no screen change for 14m');
+  assert.deepEqual([t.ui.toasts.at(-1).level, t.ui.toasts.at(-1).command], ['warn', 'session.select']);
+  t.ctl.onServerEvent({ type: 'stall', data: { uid: 'u2', minutes: 10 } });
+  assert.equal(t.toasts().at(-1), 'A session may be stalled — no screen change for 10m');
+  const n = t.ui.toasts.length;
+  t.ctl.onServerEvent({ type: 'stall', data: { uid: 'u3', title: 'x', minutes: 10, muted: true } });
+  assert.equal(t.ui.toasts.length, n, 'muted sessions are quiet');
+  const off = setup({ server: { prefs: { ...fixture.prefs, stall_minutes: 0 } } });
+  off.ctl.onServerEvent({ type: 'stall', data: { uid: 'u1', title: 'x', minutes: 10 } });
+  assert.equal(off.ui.toasts.length, 0);
+});
+
+test('v1 native settings go to the app shell only, never PATCHed (SHELL_CONTRACT §6)', () => {
+  const t = setup({ native: true });
+  t.ctl.run('nativeSettings.launchAtLogin', { value: true });
+  t.ctl.run('nativeSettings.menuBarOnly', { value: 1 });
+  t.ctl.run('nativeSettings.menuBarOnly');
+  assert.deepEqual(t.nativeCalls, [['launchAtLogin', true], ['menuBarOnly', true], ['menuBarOnly', false]]);
+  assert.equal(t.calls.filter((c) => c[0] === 'patchPrefs').length, 0);
+  const br = setup();
+  br.ctl.run('nativeSettings.launchAtLogin', { value: true });
+  assert.deepEqual(br.nativeCalls, [], 'browser mode: no-op');
 });
