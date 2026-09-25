@@ -1,0 +1,13 @@
+{
+  "name": "omniwatch-web-tests",
+  "private": true,
+  "type": "module",
+  "description": "Node/Playwright tests for omniwatch/web. Unit tests (unit/) need zero npm packages and run directly with `node --test`. @playwright/test is pinned here for WP6 (E2E) and is not required/installed for unit tests.",
+  "scripts": {
+    "test": "node --test unit/",
+    "coverage": "node --test --experimental-test-coverage unit/"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  }
+}

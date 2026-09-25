@@ -1,0 +1,207 @@
+{
+  "version": "1.0.0",
+  "seq": 812,
+  "server_time": 1790000000.12,
+  "demo": true,
+  "iterm": {
+    "status": "ok",
+    "error": "",
+    "last_poll_at": 1790000000.0,
+    "poll_ms": 240,
+    "stale": false
+  },
+  "summary": {
+    "tabs": 7,
+    "agents": 4,
+    "waiting": 2,
+    "busy": 1,
+    "waiting_uids": [
+      "BBBBBBBB-0001-4BBB-8BBB-000000000001",
+      "AAAAAAAA-0002-4AAA-8AAA-000000000002"
+    ]
+  },
+  "windows": [
+    { "id": 104, "number": 1 },
+    { "id": 311, "number": 2 }
+  ],
+  "sessions": [
+    {
+      "uid": "AAAAAAAA-0001-4AAA-8AAA-000000000001",
+      "window_id": 104, "window_number": 1, "tab_index": 1, "session_index": 1, "tab_label": "1.1",
+      "tty": "/dev/ttys000", "name": "✨ Fix flaky test", "is_processing": true,
+      "path": "/Users/me/src/api-gateway", "path_display": "~/src/api-gateway",
+      "agent": "claude", "agents": ["claude"],
+      "state": "busy", "state_since": 1789999940.0, "rule": null,
+      "attention": false, "last_change": 1789999999.0, "fresh_until": null,
+      "label": "", "display_name": "✨ Fix flaky test", "title": "✨ Fix flaky test",
+      "tab_color": null, "project": null, "muted": false, "is_dashboard": false,
+      "screen_hash": "1a2b3c4d",
+      "prompt": null
+    },
+    {
+      "uid": "AAAAAAAA-0002-4AAA-8AAA-000000000002",
+      "window_id": 104, "window_number": 1, "tab_index": 2, "session_index": 1, "tab_label": "1.2",
+      "tty": "/dev/ttys001", "name": "✨ Refactor parser", "is_processing": false,
+      "path": "/Users/me/src/billing", "path_display": "~/src/billing",
+      "agent": "claude", "agents": ["claude"],
+      "state": "waiting", "state_since": 1789999820.0, "rule": "menu-option",
+      "attention": true, "last_change": 1789999990.4, "fresh_until": null,
+      "label": "refactor", "display_name": "refactor", "title": "refactor",
+      "tab_color": "blue", "project": 1, "muted": false, "is_dashboard": false,
+      "screen_hash": "9f3a01bc",
+      "prompt": {
+        "question": "Do you want to proceed?",
+        "options": [
+          { "key": "1", "label": "Yes", "selected": true },
+          { "key": "2", "label": "Yes, and don't ask again for npm test commands", "selected": false },
+          { "key": "3", "label": "No, and tell Claude what to do differently (esc)", "selected": false }
+        ],
+        "free_text": false
+      }
+    },
+    {
+      "uid": "AAAAAAAA-0003-4AAA-8AAA-000000000003",
+      "window_id": 104, "window_number": 1, "tab_index": 3, "session_index": 1, "tab_label": "1.3",
+      "tty": "/dev/ttys002", "name": "zsh", "is_processing": false,
+      "path": "/Users/me/src/infra", "path_display": "~/src/infra",
+      "agent": null, "agents": [],
+      "state": "quiet", "state_since": 1789998000.0, "rule": null,
+      "attention": false, "last_change": 1789993000.0, "fresh_until": null,
+      "label": "", "display_name": "zsh", "title": "zsh",
+      "tab_color": null, "project": null, "muted": false, "is_dashboard": false,
+      "screen_hash": "77aa88bb",
+      "prompt": null
+    },
+    {
+      "uid": "AAAAAAAA-0004-4AAA-8AAA-000000000004",
+      "window_id": 104, "window_number": 1, "tab_index": 4, "session_index": 1, "tab_label": "1.4",
+      "tty": "/dev/ttys003", "name": "codex", "is_processing": false,
+      "path": "", "path_display": "",
+      "agent": "codex", "agents": ["codex"],
+      "state": "idle", "state_since": 1789999300.0, "rule": null,
+      "attention": false, "last_change": 1789998700.0, "fresh_until": null,
+      "label": "", "display_name": "codex", "title": "codex",
+      "tab_color": "gray", "project": null, "muted": false, "is_dashboard": false,
+      "screen_hash": "cc11dd22",
+      "prompt": null
+    },
+    {
+      "uid": "BBBBBBBB-0001-4BBB-8BBB-000000000001",
+      "window_id": 311, "window_number": 2, "tab_index": 1, "session_index": 1, "tab_label": "2.1",
+      "tty": "/dev/ttys010", "name": "✨ Approve deploy", "is_processing": false,
+      "path": "/Users/me/src/site", "path_display": "~/src/site",
+      "agent": "codex", "agents": ["codex"],
+      "state": "waiting", "state_since": 1789999200.0, "rule": "approval",
+      "attention": true, "last_change": 1789999600.0, "fresh_until": null,
+      "label": "", "display_name": "✨ Approve deploy", "title": "✨ Approve deploy",
+      "tab_color": "green", "project": 2, "muted": false, "is_dashboard": false,
+      "screen_hash": "44ee55ff",
+      "prompt": {
+        "question": "Allow command?",
+        "options": [
+          { "key": "y", "label": "Yes (y)", "selected": true },
+          { "key": "n", "label": "No (n)", "selected": false }
+        ],
+        "free_text": false
+      }
+    },
+    {
+      "uid": "BBBBBBBB-0002-4BBB-8BBB-000000000002",
+      "window_id": 311, "window_number": 2, "tab_index": 2, "session_index": 1, "tab_label": "2.2",
+      "tty": "/dev/ttys011", "name": "tail -f app.log", "is_processing": true,
+      "path": "/Users/me/src/site", "path_display": "~/src/site",
+      "agent": null, "agents": [],
+      "state": "active", "state_since": 1789999995.0, "rule": null,
+      "attention": false, "last_change": 1790000000.0, "fresh_until": 1790000030.0,
+      "label": "", "display_name": "tail -f app.log", "title": "tail -f app.log",
+      "tab_color": null, "project": null, "muted": false, "is_dashboard": false,
+      "screen_hash": "66gg77hh",
+      "prompt": null
+    },
+    {
+      "uid": "BBBBBBBB-0003-4BBB-8BBB-000000000003",
+      "window_id": 311, "window_number": 2, "tab_index": 3, "session_index": 1, "tab_label": "2.3",
+      "tty": "/dev/ttys012", "name": "ultrawatch", "is_processing": true,
+      "path": "/Users/me/src/ultrawatch-for-iterm2", "path_display": "~/src/ultrawatch-for-iterm2",
+      "agent": null, "agents": [],
+      "state": "quiet", "state_since": 1789990000.0, "rule": null,
+      "attention": false, "last_change": 1789980000.0, "fresh_until": null,
+      "label": "", "display_name": "ultrawatch", "title": "ultrawatch",
+      "tab_color": null, "project": null, "muted": true, "is_dashboard": true,
+      "screen_hash": "88ii99jj",
+      "prompt": null
+    }
+  ],
+  "screens": {
+    "AAAAAAAA-0001-4AAA-8AAA-000000000001": { "hash": "1a2b3c4d", "text": "Running tests...\n⠋ generating" },
+    "AAAAAAAA-0002-4AAA-8AAA-000000000002": {
+      "hash": "9f3a01bc",
+      "text": "╭─ Bash command ───────────────────────╮\n│ npm test                                 │\n╰───────────────────────╯\nDo you want to proceed?\n❯ 1. Yes\n  2. Yes, and don't ask again for npm test commands\n  3. No, and tell Claude what to do differently (esc)\n"
+    },
+    "AAAAAAAA-0003-4AAA-8AAA-000000000003": { "hash": "77aa88bb", "text": "$ █" },
+    "AAAAAAAA-0004-4AAA-8AAA-000000000004": { "hash": "cc11dd22", "text": "❯\n[42% remaining]" },
+    "BBBBBBBB-0001-4BBB-8BBB-000000000001": {
+      "hash": "44ee55ff",
+      "text": "Allow command?\nrun `terraform apply`\nYes (y)\nNo (n)\n"
+    },
+    "BBBBBBBB-0002-4BBB-8BBB-000000000002": { "hash": "66gg77hh", "text": "2026-09-25T10:00:00Z INFO request served\n" },
+    "BBBBBBBB-0003-4BBB-8BBB-000000000003": { "hash": "88ii99jj", "text": "▛▞ ULTRAWATCH\n" }
+  },
+  "usage": {
+    "claude": {
+      "status": "ok",
+      "fetched_at": 1789999700.0,
+      "stale_since": null,
+      "limits": [
+        {
+          "id": "claude.five_hour", "label": "Session", "window": "5h", "pct": 62.0, "level": "yellow",
+          "resets_at": 1790008140, "reset_text": "2h 15m (Today at 5:59pm)",
+          "projection": { "kind": "pace", "at": 1790006400, "text": "on pace to hit session limit Today at 5:30pm" }
+        },
+        {
+          "id": "claude.seven_day", "label": "Weekly", "window": "7d", "pct": 31.0, "level": "green",
+          "resets_at": 1790446800, "reset_text": "5d 3h (Friday at 11:00am)",
+          "projection": null
+        },
+        {
+          "id": "claude.monthly", "label": "Monthly cap", "window": "month", "pct": 91.0, "level": "red",
+          "resets_at": 1790812800, "reset_text": "9d 6h (Oct 1 at 12:00am)", "has_cap": true,
+          "limit_display": null, "projection": null
+        }
+      ]
+    },
+    "codex": {
+      "status": "ok",
+      "fetched_at": 1789999650.0,
+      "stale_since": null,
+      "limits": [
+        {
+          "id": "codex.five_hour", "label": "Session", "window": "5h", "pct": 40.0, "level": "green",
+          "resets_at": 1790007000, "reset_text": "1h 55m (Today at 5:39pm)",
+          "projection": null
+        },
+        {
+          "id": "codex.seven_day", "label": "Weekly", "window": "7d", "pct": 84.0, "level": "yellow",
+          "resets_at": 1790100000, "reset_text": "1d 4h (Tomorrow at 8:00am)",
+          "projection": { "kind": "hit", "at": 1790060000, "text": "on pace to hit weekly limit" }
+        }
+      ]
+    }
+  },
+  "prefs": {
+    "view": "split", "sort": "natural", "show_dollars": false, "sound": false, "split_ratio": 0.42,
+    "projects_open": false, "grid_all": false, "usage_strip": "expanded", "theme": "system",
+    "font_scale": 1.0, "notifications": { "enabled": true, "click": "goto" }, "quick_reply": true,
+    "keep_on_top": false, "close_window_on_q": true, "hint_bar": true, "debug_rule": false,
+    "onboarding_done": true
+  },
+  "projects": [
+    { "slot": 1, "name": "api", "color": "blue" },
+    { "slot": 2, "name": "billing", "color": "purple" },
+    { "slot": 3, "name": "", "color": "green" },
+    { "slot": 4, "name": "", "color": "red" },
+    { "slot": 5, "name": "", "color": "yellow" }
+  ],
+  "capabilities": { "tab_colors": true, "reply": true, "debug_rule": false },
+  "quota_prompt": null
+}

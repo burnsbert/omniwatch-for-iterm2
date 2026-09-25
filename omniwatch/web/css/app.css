@@ -1,0 +1,134 @@
+/*
+ * app.css — base layout and reset, built on tokens.css. WP4 foundation
+ * only: the regions below (#ow-toolbar, #ow-sidebar, #ow-main,
+ * #ow-usage-strip) are empty shells for WP5's components to fill; no
+ * view-specific (toolbar/list/grid/preview) styling lives here yet.
+ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 640px;
+  min-height: 420px;
+  background: var(--ow-bg);
+  color: var(--ow-text);
+  font-family: var(--ow-font-ui);
+  font-size: calc(14px * var(--ow-font-scale, 1));
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app.ow-app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+}
+
+.ow-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ow-gap);
+  padding: var(--ow-gap) calc(var(--ow-gap) * 1.5);
+  background: var(--ow-surface);
+  border-bottom: 1px solid var(--ow-border);
+}
+
+.ow-body {
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr;
+  min-height: 0;
+}
+
+.ow-sidebar {
+  min-width: 0;
+  background: var(--ow-surface);
+  border-right: 1px solid var(--ow-border);
+  overflow: auto;
+}
+
+.ow-main {
+  min-width: 0;
+  overflow: auto;
+  background: var(--ow-bg);
+}
+
+.ow-usage-strip {
+  background: var(--ow-surface);
+  border-top: 1px solid var(--ow-border);
+  padding: var(--ow-gap) calc(var(--ow-gap) * 1.5);
+}
+
+/* Below 900px, the split view falls back to list (P-38); WP5 applies this
+   by switching the effective view, but the sidebar/body grid also collapses
+   here so nothing is orphaned if it doesn't. */
+@media (max-width: 900px) {
+  .ow-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ow-toasts {
+  position: fixed;
+  right: var(--ow-gap);
+  bottom: var(--ow-gap);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ow-gap) / 2);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Visually hidden but available to assistive tech (aria-live regions, P-52). */
+.ow-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Visible focus rings everywhere (§2.7); never rely on color alone. */
+:focus-visible {
+  outline: 2px solid var(--ow-focus-ring);
+  outline-offset: 2px;
+}
+
+/* State never conveyed by color alone, but rows still use a left accent
+   bar + tint as a secondary cue (P-29); shared utility classes for WP5. */
+.ow-accent-waiting {
+  border-left: 3px solid var(--ow-attention);
+  background: var(--ow-attention-bg);
+}
+
+.ow-accent-fresh {
+  border-left: 3px solid var(--ow-fresh);
+  background: var(--ow-fresh-bg);
+}
+
+.ow-text-muted {
+  color: var(--ow-text-muted);
+}
+
+.ow-mono {
+  font-family: var(--ow-font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

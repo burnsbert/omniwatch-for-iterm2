@@ -1,0 +1,174 @@
+/*
+ * tokens.css — design tokens (DESIGN.md §2.6). Selectable via
+ * `<html data-theme="dark|light|system|high-contrast">`; "system" follows
+ * `prefers-color-scheme`. Regardless of the chosen theme, an OS-level
+ * `prefers-contrast: more` preference (§2.7) switches to the same
+ * higher-contrast token set as the explicit "high-contrast" theme.
+ *
+ * Contrast: WCAG AA (4.5:1) for every text-ish token
+ * (--ow-text/-text-muted/-claude/-codex/-attention/-fresh/-busy/-warn/-danger)
+ * against --ow-surface, in every theme. Verified by
+ * web-tests/unit/tokens.test.mjs, which parses this file directly.
+ *
+ * NOTE (resolved ambiguity): DESIGN.md §2.6's literal light-theme hex
+ * values for --ow-attention (#b86e00) and --ow-fresh/--ow-busy (#1e8a3a)
+ * measure 3.99:1 and 4.42:1 against #ffffff — just short of the 4.5:1 AA
+ * target the same section states. Both are darkened slightly here
+ * (same hue) to clear AA with margin (4.72:1 / 4.65:1); every other token
+ * in the table is used verbatim. Flagged for the coordinator/designer to
+ * confirm or override.
+ */
+
+:root {
+  --ow-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ow-font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+  --ow-radius: 8px;
+  --ow-gap: 8px;
+
+  /* iTerm2 preset tab colors (ultrawatch_lib/itermcolor.py PRESETS), dark-theme values. */
+  --ow-tab-red: #fb6b62;
+  --ow-tab-orange: #f6ac47;
+  --ow-tab-yellow: #f0dc4f;
+  --ow-tab-green: #b5d749;
+  --ow-tab-blue: #5fa3f8;
+  --ow-tab-purple: #c18ed9;
+  --ow-tab-gray: #787878;
+}
+
+/* ---------- dark (default fallback, and explicit data-theme="dark") ---------- */
+:root,
+[data-theme="dark"] {
+  --ow-bg: #0f1115;
+  --ow-surface: #171a21;
+  --ow-surface-2: #1f232c;
+  --ow-border: #2a2f3a;
+  --ow-text: #e6e8ee;
+  --ow-text-muted: #8b93a3;
+  --ow-claude: #d98ad9;
+  --ow-codex: #5fafff;
+  --ow-attention: #ffb020;
+  --ow-attention-bg: rgba(255, 176, 32, .14);
+  --ow-fresh: #7fd48a;
+  --ow-fresh-bg: rgba(127, 212, 138, .12);
+  --ow-busy: #7fd48a;
+  --ow-warn: #ffb020;
+  --ow-danger: #ff6b6b;
+  --ow-selection: #2b4a7a;
+  --ow-focus-ring: #6aa9ff;
+}
+
+/* ---------- light ---------- */
+[data-theme="light"] {
+  --ow-bg: #f7f7f8;
+  --ow-surface: #ffffff;
+  --ow-surface-2: #f0f1f4;
+  --ow-border: #dcdfe5;
+  --ow-text: #1b1e24;
+  --ow-text-muted: #5d6573;
+  --ow-claude: #a3399f;
+  --ow-codex: #1f6fd1;
+  --ow-attention: #a86300; /* darkened from spec #b86e00 (3.99:1) for AA — see note above */
+  --ow-attention-bg: rgba(255, 170, 0, .16);
+  --ow-fresh: #1c8636; /* darkened from spec #1e8a3a (4.42:1) for AA — see note above */
+  --ow-fresh-bg: rgba(30, 138, 58, .10);
+  --ow-busy: #1c8636; /* darkened from spec #1e8a3a (4.42:1) for AA — see note above */
+  --ow-warn: #9a6200;
+  --ow-danger: #c62828;
+  --ow-selection: #d6e4ff;
+  --ow-focus-ring: #2f6fe0;
+
+  /* Tab-color dots/chips, 10% darker than the dark-theme presets for contrast on white. */
+  --ow-tab-red: #e26058;
+  --ow-tab-orange: #dd9b40;
+  --ow-tab-yellow: #d8c647;
+  --ow-tab-green: #a3c242;
+  --ow-tab-blue: #5693df;
+  --ow-tab-purple: #ae80c3;
+  --ow-tab-gray: #6c6c6c;
+}
+
+/* ---------- system: follow prefers-color-scheme ---------- */
+[data-theme="system"] {
+  /* Defaults to the dark values above (inherited from :root) until the
+     light media query below matches. */
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --ow-bg: #f7f7f8;
+    --ow-surface: #ffffff;
+    --ow-surface-2: #f0f1f4;
+    --ow-border: #dcdfe5;
+    --ow-text: #1b1e24;
+    --ow-text-muted: #5d6573;
+    --ow-claude: #a3399f;
+    --ow-codex: #1f6fd1;
+    --ow-attention: #a86300;
+    --ow-attention-bg: rgba(255, 170, 0, .16);
+    --ow-fresh: #1c8636;
+    --ow-fresh-bg: rgba(30, 138, 58, .10);
+    --ow-busy: #1c8636;
+    --ow-warn: #9a6200;
+    --ow-danger: #c62828;
+    --ow-selection: #d6e4ff;
+    --ow-focus-ring: #2f6fe0;
+    --ow-tab-red: #e26058;
+    --ow-tab-orange: #dd9b40;
+    --ow-tab-yellow: #d8c647;
+    --ow-tab-green: #a3c242;
+    --ow-tab-blue: #5693df;
+    --ow-tab-purple: #ae80c3;
+    --ow-tab-gray: #6c6c6c;
+  }
+}
+
+/* ---------- high-contrast ---------- */
+/* Selectable directly (data-theme="high-contrast") and applied on top of
+   any theme when the OS requests more contrast (§2.7); the media-query
+   block below repeats the same values so it always wins the cascade
+   regardless of which data-theme is active. */
+[data-theme="high-contrast"] {
+  --ow-bg: #000000;
+  --ow-surface: #000000;
+  --ow-surface-2: #1c1c1c;
+  --ow-border: #ffffff;
+  --ow-text: #ffffff;
+  --ow-text-muted: #e0e0e0;
+  --ow-claude: #ff9ff5;
+  --ow-codex: #66ccff;
+  --ow-attention: #ffcc00;
+  --ow-attention-bg: rgba(255, 204, 0, .25);
+  --ow-fresh: #66ff99;
+  --ow-fresh-bg: rgba(102, 255, 153, .2);
+  --ow-busy: #66ff99;
+  --ow-warn: #ffcc00;
+  --ow-danger: #ff6666;
+  --ow-selection: #204060;
+  --ow-focus-ring: #66ccff;
+}
+
+@media (prefers-contrast: more) {
+  :root,
+  [data-theme="dark"],
+  [data-theme="light"],
+  [data-theme="system"],
+  [data-theme="high-contrast"] {
+    --ow-bg: #000000;
+    --ow-surface: #000000;
+    --ow-surface-2: #1c1c1c;
+    --ow-border: #ffffff;
+    --ow-text: #ffffff;
+    --ow-text-muted: #e0e0e0;
+    --ow-claude: #ff9ff5;
+    --ow-codex: #66ccff;
+    --ow-attention: #ffcc00;
+    --ow-attention-bg: rgba(255, 204, 0, .25);
+    --ow-fresh: #66ff99;
+    --ow-fresh-bg: rgba(102, 255, 153, .2);
+    --ow-busy: #66ff99;
+    --ow-warn: #ffcc00;
+    --ow-danger: #ff6666;
+    --ow-selection: #204060;
+    --ow-focus-ring: #66ccff;
+  }
+}

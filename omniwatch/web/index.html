@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Omniwatch</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!--
+    WP4 foundation shell only: the regions below are empty containers for
+    WP5's components (Toolbar, ProjectsPanel/SessionList, Preview/Grid/List,
+    UsageStrip, ...). js/main.js (WP5) is the wiring entry point that fills
+    them in using store.js/reducer.js/keymap.js from this WP.
+  -->
+  <div id="app" class="ow-app">
+    <header id="ow-toolbar" class="ow-toolbar" role="toolbar" aria-label="Omniwatch toolbar"></header>
+
+    <div class="ow-body">
+      <aside id="ow-sidebar" class="ow-sidebar" aria-label="Projects and sessions"></aside>
+      <main id="ow-main" class="ow-main" aria-label="Session preview"></main>
+    </div>
+
+    <footer id="ow-usage-strip" class="ow-usage-strip" aria-label="Usage"></footer>
+  </div>
+
+  <div id="ow-toasts" class="ow-toasts" role="status" aria-live="polite"></div>
+
+  <!-- Transition/toast announcements for assistive tech (§2.7); assertive
+       is reserved for errors only. -->
+  <div id="ow-live-polite" class="ow-sr-only" aria-live="polite"></div>
+  <div id="ow-live-assertive" class="ow-sr-only" aria-live="assertive"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
