@@ -22,7 +22,7 @@ _NAMES = (
     'tail_log',
     'quiet_shell',
     'plain_idle',
-    'ultrawatch_self',
+    'vite_dev_server',
 )
 
 

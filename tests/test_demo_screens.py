@@ -20,7 +20,7 @@ class TestDemoScreensClassifyCorrectly(TripwireTestCase):
             'claude_waiting_bash', 'claude_waiting_billing',
             'claude_busy_spinner', 'claude_busy_build', 'claude_idle',
             'codex_approval', 'codex_working', 'tail_log', 'quiet_shell',
-            'plain_idle', 'ultrawatch_self',
+            'plain_idle', 'vite_dev_server',
         }
         self.assertEqual(set(SCREENS), expected)
         for name, text in SCREENS.items():
@@ -57,14 +57,33 @@ class TestDemoScreensClassifyCorrectly(TripwireTestCase):
         self.assertIsNotNone(prompt)
         self.assertEqual([o['key'] for o in prompt['options']], ['y', 'esc'])
 
-    def test_ultrawatch_self_banner_on_first_line(self):
-        first_line = SCREENS['ultrawatch_self'].split('\n', 1)[0]
-        self.assertIn('▛▞ ULTRAWATCH', first_line)
+    def test_no_demo_screen_is_a_dashboard(self):
+        # Demo screens become README screenshots: no terminal-dashboard
+        # banner (P-50) and no legacy product name anywhere.
+        from omniwatch import views
+        for name, text in SCREENS.items():
+            self.assertFalse(views.is_dashboard(text), name)
+            self.assertNotIn('ultrawatch', text.lower(), name)
+
+    def test_no_scenario_shows_the_legacy_product(self):
+        from omniwatch import views
+        from omniwatch.demo import SCENARIOS, make_demo_providers
+        for scenario in SCENARIOS:
+            p = make_demo_providers(scenario=scenario, seed=0, frozen_clock=1_790_000_000)
+            try:
+                sessions = p.iterm.snapshot(at=0).sessions
+                paths = dict(p.iterm.paths(at=0).paths)
+            except Exception:   # not-running / not-authorized scenarios
+                continue
+            for s in sessions:
+                self.assertFalse(views.is_dashboard(s.text), (scenario, s.uid))
+                for value in (s.text, s.name, paths.get(s.uid, '')):
+                    self.assertNotIn('ultrawatch', value.lower(), (scenario, s.uid))
 
     def test_non_agent_screens_have_no_agent_markers(self):
         # quiet_shell/tail_log/plain_idle must not accidentally look like
         # an agent prompt if ever misclassified with an agent kind.
-        for name in ('quiet_shell', 'tail_log', 'plain_idle'):
+        for name in ('quiet_shell', 'tail_log', 'plain_idle', 'vite_dev_server'):
             state, rule = H.classify_agent('claude', SCREENS[name], False)
             self.assertNotEqual(state, H.WAITING, f'{name} looks like a prompt')
 

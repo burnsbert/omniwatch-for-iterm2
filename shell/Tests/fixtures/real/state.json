@@ -22,7 +22,8 @@
   "keep_on_top": false,
   "notifications": {
    "click": "goto",
-   "enabled": true
+   "enabled": true,
+   "stall": true
   },
   "onboarding_done": false,
   "projects_open": false,
@@ -97,8 +98,8 @@
    "text": "  I need to regenerate the app icons before the release build.\n\n  bundle exec fastlane icons\n\n  Would you like to run the following command?\n\n  Yes (y)\n  No, and tell Codex what to do differently (esc)"
   },
   "DEMO-0008": {
-   "hash": "798f2399",
-   "text": "▛▞ ULTRAWATCH v1.2.3 — that's this dashboard\n9 tabs · 4 agents · 1 waiting"
+   "hash": "d668ceda",
+   "text": "devbox:tools user$ npm run dev\n\n> tools@0.4.2 dev\n> vite --port 5174\n\n  VITE v5.4.10  ready in 612 ms\n\n  ➜  Local:   http://localhost:5174/\n  ➜  Network: use --host to expose\n  ➜  press h + enter to show help\n2:02:31 PM [vite] hmr update /src/components/UsageChart.tsx\n2:02:47 PM [vite] hmr update /src/components/UsageChart.tsx, /src/styles/chart.css\n2:03:05 PM [vite] page reload src/routes/settings.tsx"
   },
   "DEMO-0009": {
    "hash": "86a4293c",
@@ -417,16 +418,16 @@
    "agent": null,
    "agents": [],
    "attention": false,
-   "display_name": "python3",
+   "display_name": "node",
    "fresh_until": null,
-   "is_dashboard": true,
+   "is_dashboard": false,
    "is_processing": false,
    "label": "",
    "last_change": 1790000000.0,
    "muted": false,
-   "name": "python3",
-   "path": "~/src/ultrawatch-for-iterm2",
-   "path_display": "~/src/ultrawatch-for-iterm2",
+   "name": "node",
+   "path": "~/src/tools",
+   "path_display": "~/src/tools",
    "project": 3,
    "prompt": null,
    "ribbon": {
@@ -434,7 +435,7 @@
     "codes": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
     "end": 1790000400
    },
-   "screen_hash": "798f2399",
+   "screen_hash": "d668ceda",
    "session_index": 1,
    "stalled": false,
    "stalled_since": null,
@@ -443,7 +444,7 @@
    "tab_color": "green",
    "tab_index": 3,
    "tab_label": "2.3",
-   "title": "~/src/ultrawatch-for-iterm2",
+   "title": "~/src/tools",
    "tty": "/dev/ttys008",
    "uid": "DEMO-0008",
    "window_id": 205,
@@ -594,9 +595,9 @@
      "burn": {
       "at_reset_pct": null,
       "before_reset": true,
-      "eta": 1790005783,
-      "rate_per_hour": 23.65,
-      "text": "at this rate: 100% Today at 11:49am"
+      "eta": 1790005803,
+      "rate_per_hour": 23.57,
+      "text": "at this rate: 100% Today at 11:50am"
      },
      "id": "claude.five_hour",
      "label": "Session",
@@ -615,9 +616,9 @@
      "burn": {
       "at_reset_pct": null,
       "before_reset": true,
-      "eta": 1790336752,
-      "rate_per_hour": 0.74,
-      "text": "at this rate: 100% Friday at 7:45am"
+      "eta": 1790338727,
+      "rate_per_hour": 0.73,
+      "text": "at this rate: 100% Friday at 8:18am"
      },
      "id": "claude.seven_day",
      "label": "Weekly",
@@ -634,7 +635,7 @@
     },
     {
      "burn": {
-      "at_reset_pct": 48.0,
+      "at_reset_pct": 48.1,
       "before_reset": false,
       "eta": null,
       "rate_per_hour": 0.29,
@@ -653,9 +654,9 @@
      "burn": {
       "at_reset_pct": null,
       "before_reset": true,
-      "eta": 1790158589,
+      "eta": 1790162000,
       "rate_per_hour": 0.2,
-      "text": "at this rate: 100% Wednesday at 6:16am"
+      "text": "at this rate: 100% Wednesday at 7:13am"
      },
      "has_cap": true,
      "id": "claude.monthly",
@@ -684,7 +685,7 @@
       "at_reset_pct": 51.5,
       "before_reset": false,
       "eta": null,
-      "rate_per_hour": 10.86,
+      "rate_per_hour": 10.84,
       "text": "at this rate: ~52% at reset"
      },
      "id": "codex.five_hour",
@@ -700,9 +701,9 @@
      "burn": {
       "at_reset_pct": null,
       "before_reset": true,
-      "eta": 1790087102,
+      "eta": 1790087272,
       "rate_per_hour": 0.66,
-      "text": "at this rate: 100% Tomorrow at 10:25am"
+      "text": "at this rate: 100% Tomorrow at 10:27am"
      },
      "id": "codex.seven_day",
      "label": "Weekly",

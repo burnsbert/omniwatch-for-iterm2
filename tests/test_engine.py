@@ -18,7 +18,7 @@ from omniwatch import engine as engine_mod
 from omniwatch import heuristics as H
 from omniwatch import persist
 from omniwatch.engine import ApiError
-from omniwatch.snapshot import ColorsSnapshot, ItermSnapshot, UsageSnapshot
+from omniwatch.snapshot import AgentSnapshot, ColorsSnapshot, ItermSnapshot, UsageSnapshot
 
 
 class EngineTestCase(TripwireTestCase):
@@ -312,6 +312,9 @@ class TestItermStatus(EngineTestCase):
     def test_poll_ms_from_real_snapshot_time(self):
         h = self.harness()
         h.engine.events.put(('iterm', ItermSnapshot(sessions=(), at=time.time() - 0.25)))
+        # iTerm snapshots are classified once the first agents scan is in
+        # (T022); the held snapshot keeps the poll_ms measured on arrival.
+        h.engine.events.put(('agents', AgentSnapshot(ttys=(), tty_cwd=(), at=0.0)))
         h.engine.pump()
         self.assertGreaterEqual(h.engine.state()['iterm']['poll_ms'], 250)
 

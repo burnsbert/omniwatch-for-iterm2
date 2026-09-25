@@ -20,6 +20,7 @@ import collections
 import concurrent.futures
 import copy
 import itertools
+import logging
 import os
 import platform
 import queue
@@ -39,6 +40,8 @@ from omniwatch import usagehist, views
 from omniwatch.iterm import ItermNotAuthorized, ItermNotRunning
 from omniwatch.snapshot import (AgentSnapshot, ColorsSnapshot, ItermSnapshot,
                                 UsageSnapshot)
+
+log = logging.getLogger('omniwatch.engine')
 
 CALL_TIMEOUT = 2.0
 REPLY_MAX_AGE = 5.0          # quick reply: reject snapshots older than this
@@ -313,6 +316,9 @@ class Engine:
     def _reset_model(self):
         self.started = self.clock.time()
         self.iterm_snap = None           # last good ItermSnapshot
+        # A good snapshot that arrived before the first `ps` scan, held
+        # until the agents are known (see _on_iterm).
+        self._pending_iterm = None
         self.iterm_status = 'connecting'
         self.iterm_error = ''
         self.last_poll_at = None
@@ -393,16 +399,24 @@ class Engine:
         return self._thread is not None and self._thread.is_alive()
 
     def _run(self):
+        # Nothing may kill this thread: /health would keep answering while
+        # the published state froze and every command timed out.
         while not self.stop_evt.is_set():
             try:
                 item = self.events.get(timeout=self.tick)
             except queue.Empty:
                 item = None
             if item is not None:
-                self._handle(item)
+                self._guarded(self._handle, item)
                 self._drain(limit=200)
-            self._housekeeping()
-            self._publish()
+            self._guarded(self._housekeeping)
+            self._guarded(self._publish)
+
+    def _guarded(self, fn, *args):
+        try:
+            fn(*args)
+        except Exception:
+            log.exception('engine: %s failed', getattr(fn, '__name__', fn))
 
     def _drain(self, limit=None):
         n = 0
@@ -411,7 +425,10 @@ class Engine:
                 item = self.events.get_nowait()
             except queue.Empty:
                 return
-            self._handle(item)
+            if self.running and threading.current_thread() is self._thread:
+                self._guarded(self._handle, item)
+            else:
+                self._handle(item)
             n += 1
 
     def pump(self):
@@ -470,6 +487,9 @@ class Engine:
             self.paths.update(dict(payload.paths))
         elif kind == 'agents':
             self.agents_snap = payload
+            pending, self._pending_iterm = self._pending_iterm, None
+            if pending is not None:
+                self._on_iterm(*pending)
         elif kind == 'colors':
             self.colors = dict(payload.colors)
             self.colors_seen = True
@@ -494,6 +514,8 @@ class Engine:
 
     def _on_iterm(self, snap, poll_ms=None):
         now = self.clock.time()
+        if snap.not_running or snap.error:
+            self._pending_iterm = None    # a held snapshot is older news
         if snap.not_running:
             self.iterm_status, self.iterm_error = 'not_running', ''
             self.iterm_snap = ItermSnapshot(at=snap.at)
@@ -508,14 +530,21 @@ class Engine:
             else:
                 self.iterm_status, self.iterm_error = 'error', snap.error
             return   # keep the last good sessions visible (stale)
+        if poll_ms is None and snap.at:   # ItermWorker stamps `at` with time.time()
+            poll_ms = max(0, int(round((time.time() - snap.at) * 1000)))
+        if self.agents_snap is None:
+            # Classifying now would treat every agent session as a plain
+            # shell and "transition" it once `ps` reports in (a spurious
+            # waiting notification per launch). Hold the newest snapshot
+            # until the first agents snapshot arrives.
+            self._pending_iterm = (snap, poll_ms)
+            return
         self.iterm_status, self.iterm_error = 'ok', ''
         self.last_poll_at = now
         if self.demo:
             self.poll_ms = 0      # deterministic State in demo mode
         elif poll_ms is not None:
             self.poll_ms = poll_ms
-        elif snap.at:             # ItermWorker stamps `at` with time.time()
-            self.poll_ms = max(0, int(round((time.time() - snap.at) * 1000)))
         self.iterm_snap = snap
         kinds = views.agent_kinds(self.agents_snap)
         for uid, old, new in self.tracker.update(snap.sessions, kinds, now):
@@ -555,13 +584,22 @@ class Engine:
 
     def _on_usage(self, kind, snap):
         prev = self.usage[kind]
+        limits = None
+        if snap.data and not snap.inactive:
+            try:
+                limits = views.USAGE_PROVIDERS[kind](
+                    snap.data, show_dollars=False,
+                    now=datetime.fromtimestamp(self.clock.time(), timezone.utc))
+            except Exception:
+                # An API shape change must not break every later publish:
+                # treat it as a failed fetch and keep the last good data.
+                log.warning('ignoring a malformed %s usage payload', kind, exc_info=True)
+                keep = prev.data if prev is not None and not prev.inactive else None
+                snap = UsageSnapshot(data=keep, ok=False, at=snap.at)
+                limits = None
         self.usage[kind] = snap
-        if snap.ok and snap.data and not snap.inactive:
-            now = self.clock.time()
-            limits = views.USAGE_PROVIDERS[kind](
-                snap.data, show_dollars=False,
-                now=datetime.fromtimestamp(now, timezone.utc))
-            self.usage_history.record(kind, limits, now)
+        if snap.ok and limits is not None:
+            self.usage_history.record(kind, limits, self.clock.time())
         if snap.inactive or snap.ok:
             self.usage_stale_since[kind] = None
         elif snap.data and self.usage_stale_since[kind] is None:

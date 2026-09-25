@@ -29,9 +29,18 @@ BURN_MIN_SPAN = 600
 MAX_HOURS = 168
 
 
+def _number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
 def _valid(entry):
-    return (isinstance(entry, dict) and isinstance(entry.get('t'), (int, float))
-            and isinstance(entry.get('p'), str) and isinstance(entry.get('l'), dict))
+    if not (isinstance(entry, dict) and _number(entry.get('t'))
+            and isinstance(entry.get('p'), str) and isinstance(entry.get('l'), dict)):
+        return False
+    # every value is [pct] or [pct, resets_at|null] (series()/burn() index into it)
+    return all(isinstance(v, list) and len(v) in (1, 2) and _number(v[0]) and
+               (len(v) == 1 or v[1] is None or _number(v[1]))
+               for v in entry['l'].values())
 
 
 class UsageHistory:
@@ -49,7 +58,9 @@ class UsageHistory:
         entries, dirty = [], False
         if self.path:
             try:
-                with open(self.path, encoding='utf-8') as f:
+                # errors='replace': a damaged byte spoils one line (skipped
+                # below as invalid JSON), not the whole engine startup.
+                with open(self.path, encoding='utf-8', errors='replace') as f:
                     for line in f:
                         try:
                             entry = json.loads(line)

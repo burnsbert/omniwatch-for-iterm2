@@ -102,6 +102,7 @@ class StateStore:
                 self.state['migrated_from_ultrawatch'] = int(now)
                 self._dirty_at = now
         self._gc_labels(now)
+        self._normalize_muted()
         self._normalize_projects()
 
     def _load(self):
@@ -120,9 +121,21 @@ class StateStore:
             return
         for uid in list(labels):
             entry = labels[uid]
+            # A hand-edited/damaged entry (non-string label, non-numeric
+            # last_seen) is dropped rather than crashing startup.
+            last_seen = entry.get('last_seen', 0) if isinstance(entry, dict) else None
             if (not isinstance(entry, dict) or not entry.get('label') or
-                    entry.get('last_seen', 0) < cutoff):
+                    not isinstance(entry['label'], str) or
+                    not isinstance(last_seen, (int, float)) or
+                    isinstance(last_seen, bool) or last_seen < cutoff):
                 del labels[uid]
+
+    def _normalize_muted(self):
+        muted = self.state.get('muted')
+        if not isinstance(muted, dict):
+            muted = {}
+        self.state['muted'] = {uid: True for uid, v in muted.items()
+                               if isinstance(uid, str) and v is True}
 
     def _normalize_projects(self):
         projects = self.state.get('projects')

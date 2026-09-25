@@ -300,7 +300,8 @@ percentage reaches the configured threshold and it hasn't been shown this month
 - `display_name` is `label || name`. `title` is `label || path_display || name || uid[:8]`.
 - `project` is the slot (1–5) whose color equals `tab_color`, regardless of whether that
   slot has a name.
-- `is_dashboard` means the first screen line contains `▛▞ ULTRAWATCH`.
+- `is_dashboard` is true when the session's first screen line shows the banner of a terminal
+  dashboard, such as the legacy Ultrawatch TUI running in a tab.
 - `screen_hash` is the CRC32 of the screen with spinner glyphs stripped and trailing blanks
   trimmed, as 8 lowercase hex digits. It's the value to send as `expect_hash`.
 - `prompt` is only present (non-null) for agent sessions in `waiting` whose screen parses.
@@ -543,8 +544,8 @@ Other behavior:
 - **Exit codes:** startup failure (e.g. port in use, demo package missing) → 1, with the
   message on stderr and no ready line. Bad CLI usage → 2.
 - Without `--ready-json`, stdout gets one human-readable line with the auth URL.
-- In demo mode, the Ultrawatch migration is disabled, so your real Ultrawatch labels never
-  leak into a demo.
+- In demo mode, the one-time state import from `~/.config/ultrawatch/state.json` is disabled,
+  so your real labels never leak into a demo.
 - `doctor` takes one iTerm2 snapshot (which may trigger the Automation prompt the first time)
   and reports python, the `iterm2` package, iTerm2 status, automation, Claude/Codex
   credentials, config dir, log path, and any running backend.
@@ -662,7 +663,7 @@ How demo mode runs:
 19. **CLI:**
     - The stdin-EOF guard needs `--ready-json` or `--parent-pid`, and stdin must be a pipe or
       socket.
-    - Demo mode ignores Ultrawatch migration.
+    - Demo mode skips the one-time `~/.config/ultrawatch/` state import.
     - `--browser` defaults the log file to `~/Library/Logs/Omniwatch/backend.log`.
     - There's a hidden `--providers-factory MODULE:FUNC` (tests only; forces
       `OMNIWATCH_DEMO=1`).

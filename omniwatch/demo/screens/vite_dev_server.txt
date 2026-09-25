@@ -1,0 +1,13 @@
+devbox:tools user$ npm run dev
+
+> tools@0.4.2 dev
+> vite --port 5174
+
+  VITE v5.4.10  ready in 612 ms
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+2:02:31 PM [vite] hmr update /src/components/UsageChart.tsx
+2:02:47 PM [vite] hmr update /src/components/UsageChart.tsx, /src/styles/chart.css
+2:03:05 PM [vite] page reload src/routes/settings.tsx

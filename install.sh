@@ -67,6 +67,13 @@ die() { echo "install.sh: error: $*" >&2; exit 1; }
 
 [ "$(uname -s)" = "Darwin" ] || die "Omniwatch only runs on macOS."
 
+# /usr/bin/swiftc, /usr/bin/make and /usr/bin/python3 always exist on
+# macOS: without the Command Line Tools they're shims that pop an
+# "install developer tools" dialog and fail. So `command -v` proves
+# nothing; ask xcode-select (which never prompts) instead.
+HAVE_DEVTOOLS=0
+if xcode-select -p >/dev/null 2>&1; then HAVE_DEVTOOLS=1; fi
+
 find_python() {
   # Prefer an interpreter that can `import iterm2` (tab colors), but any
   # >=3.9 interpreter is acceptable (docs/DESIGN.md §4.7/§8).
@@ -76,6 +83,8 @@ find_python() {
     [ -n "$c" ] || continue
     command -v "$c" >/dev/null 2>&1 || continue
     resolved="$(command -v "$c")"
+    # Running the CLT shim would pop the developer-tools install dialog.
+    if [ "$resolved" = "/usr/bin/python3" ] && [ "$HAVE_DEVTOOLS" -eq 0 ]; then continue; fi
     "$resolved" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null || continue
     if "$resolved" -c 'import iterm2' >/dev/null 2>&1; then
       echo "$resolved"
@@ -91,8 +100,8 @@ PYTHON_BIN="$(find_python)" || die "no Python >=3.9 found (checked \$OMNIWATCH_P
 log "using Python: $PYTHON_BIN ($("$PYTHON_BIN" -c 'import platform; print(platform.python_version())'))"
 
 if [ "$NO_APP" -eq 0 ]; then
-  if ! command -v swiftc >/dev/null 2>&1; then
-    log "swiftc not found — install Xcode Command Line Tools with:"
+  if [ "$HAVE_DEVTOOLS" -eq 0 ] || ! command -v swiftc >/dev/null 2>&1; then
+    log "swiftc not found (no developer tools) — install Xcode Command Line Tools with:"
     log "    xcode-select --install"
     log "or re-run with --no-app for browser-only mode. Continuing with --no-app."
     NO_APP=1
@@ -102,7 +111,20 @@ fi
 # ---- 2. Build (docs/DESIGN.md §6 "Artifacts") -----------------------------
 
 log "building dist/omniwatch (zipapp)..."
-make -C "$REPO_DIR" dist-pyz
+if [ "$HAVE_DEVTOOLS" -eq 1 ]; then
+  make -C "$REPO_DIR" dist-pyz
+else
+  # `make` is a developer-tools shim too; same steps as the Makefile's
+  # dist-pyz target, with the Python found above.
+  pyz_build="$(mktemp -d)"
+  cp -R "$REPO_DIR/omniwatch" "$pyz_build/omniwatch"
+  find "$pyz_build" -name __pycache__ -type d -prune -exec rm -rf {} +
+  printf 'from omniwatch.__main__ import run\nrun()\n' > "$pyz_build/__main__.py"
+  mkdir -p "$REPO_DIR/dist"
+  "$PYTHON_BIN" -m zipapp "$pyz_build" -p "/usr/bin/env python3" -o "$REPO_DIR/dist/omniwatch"
+  chmod +x "$REPO_DIR/dist/omniwatch"
+  rm -rf "$pyz_build"
+fi
 
 if [ "$NO_APP" -eq 0 ]; then
   log "building Omniwatch.app (swiftc)..."
@@ -144,13 +166,22 @@ esac
 
 if [ "$WITH_COLORS" -eq 1 ]; then
   log "installing the iterm2 package for tab colors (network)..."
-  PYTHON="$PYTHON_BIN" make -C "$REPO_DIR" install-colors
+  if [ "$HAVE_DEVTOOLS" -eq 1 ]; then
+    PYTHON="$PYTHON_BIN" make -C "$REPO_DIR" install-colors
+  else
+    "$PYTHON_BIN" -m pip install iterm2 || "$PYTHON_BIN" -m pip install --break-system-packages iterm2
+  fi
 fi
 
 if [ "$WITH_PLUGIN" -eq 1 ]; then
   plugin_dest="$HOME_DIR/Library/Application Support/iTerm2/Scripts/AutoLaunch"
   log "installing the iTerm2 status-bar plugin to $plugin_dest ..."
-  PLUGIN_DEST="$plugin_dest" make -C "$REPO_DIR" install-plugin
+  if [ "$HAVE_DEVTOOLS" -eq 1 ]; then
+    PLUGIN_DEST="$plugin_dest" make -C "$REPO_DIR" install-plugin
+  else
+    mkdir -p "$plugin_dest"
+    cp "$REPO_DIR/plugin/iterm2/omniwatch_status.py" "$REPO_DIR/plugin/iterm2/omniwatch_plugin_lib.py" "$plugin_dest/"
+  fi
 fi
 
 if [ "$NO_OPEN" -eq 0 ]; then

@@ -54,7 +54,7 @@ SCREEN_STATES = {
     'claude_busy_spinner': 'busy', 'claude_busy_build': 'busy',
     'claude_idle': 'idle', 'codex_approval': 'waiting', 'codex_working': 'busy',
     'tail_log': 'active', 'quiet_shell': 'quiet', 'plain_idle': 'quiet',
-    'ultrawatch_self': 'quiet',
+    'vite_dev_server': 'quiet',
 }
 
 PROJECTS = {'default': ['api-gateway', 'billing', 'tools', '', '']}
