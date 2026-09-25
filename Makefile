@@ -1,9 +1,13 @@
 PYTHON ?= python3
 SYSTEM_PYTHON ?= /usr/bin/python3
+# Override for tests, e.g. `PLUGIN_DEST=/tmp/x make install-plugin`
+# (docs/DESIGN.md §4.8, §7 WP10) — never point this at the real iTerm2
+# AutoLaunch folder from a test.
+PLUGIN_DEST ?= $(HOME)/Library/Application Support/iTerm2/Scripts/AutoLaunch
 
 .PHONY: test test39 coverage web-unit swift-test app check \
         e2e screenshots dist dist-pyz dist-app install check-install \
-        install-colors clean
+        install-colors install-plugin uninstall-plugin clean
 
 # ---- Python backend (WP0/WP1; docs/DESIGN.md §5, §7) ---------------------
 
@@ -70,7 +74,7 @@ dist-pyz:
 	mkdir -p build/app dist
 	cp -R omniwatch build/app/omniwatch
 	find build/app -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
-	printf 'from omniwatch.cli import main\nmain()\n' > build/app/__main__.py
+	printf 'from omniwatch.__main__ import run\nrun()\n' > build/app/__main__.py
 	$(PYTHON) -m zipapp build/app -p "/usr/bin/env python3" -o dist/omniwatch
 	chmod +x dist/omniwatch
 	rm -rf build/app
@@ -142,6 +146,23 @@ check-install:
 	[ ! -e "$$tmp/Applications/Omniwatch.app" ] || { echo "FAIL: app survived uninstall"; exit 1; }; \
 	echo "check-install: uninstall OK"; \
 	echo "check-install PASSED"
+
+# ---- iTerm2 plugin (WP10; docs/DESIGN.md §4.8) ----------------------------
+
+# Copies the status-bar AutoLaunch script into iTerm2's Scripts/AutoLaunch
+# folder. Override PLUGIN_DEST to install (and, in tests, verify) into a
+# throwaway directory instead — never run the plain form of this target
+# from a test.
+install-plugin:
+	mkdir -p "$(PLUGIN_DEST)"
+	cp plugin/iterm2/omniwatch_status.py plugin/iterm2/omniwatch_plugin_lib.py "$(PLUGIN_DEST)/"
+	@echo "installed the Omniwatch status-bar plugin to $(PLUGIN_DEST)"
+	@echo "next: enable iTerm2 > Settings > General > Magic > \"Enable Python API\","
+	@echo "then right-click a status bar > Configure Status Bar > add \"Omniwatch\"."
+
+uninstall-plugin:
+	rm -f "$(PLUGIN_DEST)/omniwatch_status.py" "$(PLUGIN_DEST)/omniwatch_plugin_lib.py"
+	@echo "removed the Omniwatch status-bar plugin from $(PLUGIN_DEST)"
 
 # Optional: iterm2 pip package for the tab-color indicator (see README).
 # Plain `pip install` fails outright on PEP 668 "externally managed"
