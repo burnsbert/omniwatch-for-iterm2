@@ -105,7 +105,7 @@ PREF_RULES = {
     'projects_open': _is_bool,
     'grid_all': _is_bool,
     'usage_strip': _choice('expanded', 'collapsed'),
-    'theme': _choice('system', 'dark', 'light'),
+    'theme': _choice('system', 'dark', 'light', 'high-contrast'),
     'font_scale': _range(0.5, 2.0),
     'notifications': lambda v: isinstance(v, dict),
     'quick_reply': _is_bool,
@@ -117,7 +117,8 @@ PREF_RULES = {
     'stall_minutes': lambda v: isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 240,
     'editor': lambda v: _valid_editor(v),
 }
-NOTIFICATION_RULES = {'enabled': _is_bool, 'click': _choice('goto', 'show')}
+NOTIFICATION_RULES = {'enabled': _is_bool, 'click': _choice('goto', 'show'),
+                      'stall': _is_bool}
 
 assert set(PREF_RULES) == set(persist.PREF_KEYS), 'PREF_RULES out of sync'
 
@@ -168,14 +169,29 @@ def _valid_notifications(value, partial):
                for k, v in value.items())
 
 
+def _normalize_notifications(value):
+    """Merge a stored notifications dict with defaults: missing or
+    unknown-typed keys fall back to their default individually, instead of
+    resetting the whole dict (a stored `{'enabled': False, 'click': ...}`
+    from before a new key like `stall` was added must keep its valid
+    values, not be wiped)."""
+    out = copy.deepcopy(persist.DEFAULTS['notifications'])
+    if isinstance(value, dict):
+        for key, rule in NOTIFICATION_RULES.items():
+            if key in value and rule(value[key]):
+                out[key] = value[key]
+    return out
+
+
 def normalize_prefs(store):
     """Reset stored prefs that fail validation to their defaults (P-74:
     unknown or invalid values are normalized)."""
     for key, rule in PREF_RULES.items():
         value = store.get(key)
-        ok = (_valid_notifications(value, partial=False)
-              if key == 'notifications' else rule(value))
-        if not ok:
+        if key == 'notifications':
+            store.state[key] = _normalize_notifications(value)
+            continue
+        if not rule(value):
             store.state[key] = copy.deepcopy(persist.DEFAULTS[key])
 
 
@@ -715,7 +731,14 @@ class Engine:
         return out
 
     def _stall_events(self, cur):
-        """A `stall` event for each session that just became stalled."""
+        """A `stall` event for each session that just became stalled.
+
+        Emitted unconditionally, with the same payload regardless of the
+        `notifications.stall` pref: the backend has no toast/notification
+        path of its own for stalls (unlike quota), so there's nothing here
+        to suppress. Clients (web UI, Swift shell) read `prefs.notifications
+        .stall` themselves and decide whether to surface a notification for
+        this event (docs/SHELL_CONTRACT.md §5)."""
         stalled = {s['uid']: s for s in cur['sessions'] if s['stalled']}
         out = [('stall', {'uid': uid, 'title': s['title'], 'agent': s['agent'],
                           'since': s['stalled_since'],

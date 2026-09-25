@@ -33,7 +33,7 @@ DEFAULTS = {
     'usage_strip': 'expanded',
     'theme': 'system',
     'font_scale': 1.0,
-    'notifications': {'enabled': True, 'click': 'goto'},
+    'notifications': {'enabled': True, 'click': 'goto', 'stall': True},
     'quick_reply': True,
     'keep_on_top': False,
     'close_window_on_q': True,

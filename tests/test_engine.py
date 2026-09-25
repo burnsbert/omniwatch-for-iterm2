@@ -78,8 +78,28 @@ class TestInitialState(EngineTestCase):
         engine_mod.normalize_prefs(store)
         self.assertEqual(store.get('view'), 'split')
         self.assertEqual(store.get('split_ratio'), 0.42)
-        self.assertEqual(store.get('notifications'), {'enabled': True, 'click': 'goto'})
+        self.assertEqual(store.get('notifications'),
+                         {'enabled': True, 'click': 'goto', 'stall': True})
         self.assertEqual(store.get('theme'), 'dark')
+
+    def test_notifications_missing_key_migration_fills_default(self):
+        """A stored `notifications` dict from before the `stall` key
+        existed keeps its other valid values; only the missing key is
+        filled from the default (it must not be wiped wholesale)."""
+        store = persist.StateStore(path=os.path.join(self.tmp_config_dir, 's.json'),
+                                   ultrawatch_path=os.path.join(self.tmp_config_dir, 'x'))
+        store.state['notifications'] = {'enabled': False, 'click': 'show'}
+        engine_mod.normalize_prefs(store)
+        self.assertEqual(store.get('notifications'),
+                         {'enabled': False, 'click': 'show', 'stall': True})
+
+    def test_notifications_invalid_key_falls_back_individually(self):
+        store = persist.StateStore(path=os.path.join(self.tmp_config_dir, 's.json'),
+                                   ultrawatch_path=os.path.join(self.tmp_config_dir, 'x'))
+        store.state['notifications'] = {'enabled': False, 'click': 'bogus', 'stall': 'nope'}
+        engine_mod.normalize_prefs(store)
+        self.assertEqual(store.get('notifications'),
+                         {'enabled': False, 'click': 'goto', 'stall': True})
 
 
 class TestSessionsPublishing(EngineTestCase):
@@ -660,11 +680,25 @@ class TestPrefs(EngineTestCase):
         self.assertEqual(prefs['split_ratio'], 0.46)
         self.assertEqual(prefs['font_scale'], 1.0)
         self.assertIsInstance(prefs['font_scale'], float)
-        self.assertEqual(prefs['notifications'], {'enabled': True, 'click': 'show'})
+        self.assertEqual(prefs['notifications'],
+                         {'enabled': True, 'click': 'show', 'stall': True})
         self.assertEqual(h.engine.prefs(), prefs)
         ev = h.named('prefs')
         self.assertEqual(ev[0]['prefs'], prefs)
         self.assertEqual(len(ev[0]['projects']), 5)
+
+    def test_patch_theme_high_contrast(self):
+        h = self.harness()
+        prefs = h.engine.patch_prefs({'theme': 'high-contrast'})
+        self.assertEqual(prefs['theme'], 'high-contrast')
+
+    def test_patch_notifications_stall(self):
+        h = self.harness()
+        prefs = h.engine.patch_prefs({'notifications': {'stall': False}})
+        self.assertEqual(prefs['notifications'],
+                         {'enabled': True, 'click': 'goto', 'stall': False})
+        self.assertApiError(422, 'invalid', h.engine.patch_prefs,
+                            {'notifications': {'stall': 'no'}})
 
     def test_patch_invalid_is_atomic(self):
         h = self.harness()

@@ -193,7 +193,8 @@ class TestNewPrefsKeys(TripwireTestCase):
         self.assertEqual(st.get('usage_strip'), 'expanded')
         self.assertEqual(st.get('theme'), 'system')
         self.assertEqual(st.get('font_scale'), 1.0)
-        self.assertEqual(st.get('notifications'), {'enabled': True, 'click': 'goto'})
+        self.assertEqual(st.get('notifications'),
+                         {'enabled': True, 'click': 'goto', 'stall': True})
         self.assertTrue(st.get('quick_reply'))
         self.assertFalse(st.get('keep_on_top'))
         self.assertTrue(st.get('close_window_on_q'))

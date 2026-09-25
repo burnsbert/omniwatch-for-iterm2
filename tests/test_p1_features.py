@@ -131,6 +131,22 @@ class TestStall(P1TestCase):
         for bad in (-1, 241, True, 5.5, '10'):
             self.assertApiError(422, 'invalid', h.engine.patch_prefs, {'stall_minutes': bad})
 
+    def test_stall_event_sent_regardless_of_notifications_stall_pref(self):
+        """The backend has no toast/notification path of its own for
+        stalls, so `notifications.stall == False` doesn't change the
+        `stall` SSE event; clients suppress their own banner/toast for it
+        (docs/SHELL_CONTRACT.md §5)."""
+        h = self.harness()
+        h.engine.patch_prefs({'notifications': {'stall': False}})
+        h.poll()
+        t0 = h.session(fp.UID_BUSY)['last_change']
+        h.events()
+        h.p.clock.advance(600)
+        h.poll()
+        stall = h.named('stall')
+        self.assertEqual(stall, [{'uid': fp.UID_BUSY, 'title': '~/src/billing', 'agent': 'claude',
+                                  'since': t0, 'minutes': 10, 'muted': False}])
+
     def test_screen_change_clears_stall(self):
         h = self.harness()
         h.poll()

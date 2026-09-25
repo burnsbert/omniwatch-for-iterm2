@@ -191,9 +191,9 @@ Pref whitelist and allowed values:
 | `projects_open` | bool | `false` |
 | `grid_all` | bool | `false` |
 | `usage_strip` | `expanded` \| `collapsed` | `expanded` |
-| `theme` | `system` \| `dark` \| `light` | `system` |
+| `theme` | `system` \| `dark` \| `light` \| `high-contrast` | `system` |
 | `font_scale` | number 0.5–2.0, rounded to 2 decimals, always returned as a float | `1.0` |
-| `notifications` | object, merged partially: `{"enabled": bool, "click": "goto"\|"show"}` | `{"enabled":true,"click":"goto"}` |
+| `notifications` | object, merged partially: `{"enabled": bool, "click": "goto"\|"show", "stall": bool}` | `{"enabled":true,"click":"goto","stall":true}` |
 | `quick_reply` | bool (also sets `capabilities.reply`) | `true` |
 | `keep_on_top` | bool | `false` |
 | `close_window_on_q` | bool | `true` |
@@ -204,9 +204,11 @@ Pref whitelist and allowed values:
 | `editor` **(P1→v1)** | string ≤ 200 characters, no control characters, must split with shlex; `""` means auto (`$VISUAL`/`$EDITOR`/`code`) | `""` |
 
 Booleans must be JSON booleans; `1` is rejected. Invalid values already in `state.json` are
-reset to their defaults at startup. Changing `show_dollars` also emits a `usage` event.
-Changing `quick_reply` or `debug_rule` also emits `capabilities`, and `debug_rule` also
-emits `sessions`.
+reset to their defaults at startup, except `notifications`: each of its keys is normalized
+individually (a missing or invalid key falls back to its own default), so a value stored
+before a key like `stall` existed keeps its other valid values instead of being wiped.
+Changing `show_dollars` also emits a `usage` event. Changing `quick_reply` or `debug_rule`
+also emits `capabilities`, and `debug_rule` also emits `sessions`.
 
 ### Quota email
 
@@ -477,7 +479,7 @@ data: <one line of JSON>
 | `toast` | `{level:"info"\|"warn"\|"error", message}` | server toasts (currently only `refreshing…`) |
 | `quota` | `{pct, to}` | a quota prompt becomes pending (clearing it is done with a full `state`, see above) |
 | `stats` **(P1→v1)** | `{seq, stats: Stats}` | a wait starts or ends, or the day rolls over |
-| `stall` **(P1→v1)** | `{uid, title, agent, since, minutes, muted}` (`since` is the last screen change) | a busy session becomes stalled; once per episode. The Swift shell posts a banner notification (skipped when `muted`); the web UI can toast it |
+| `stall` **(P1→v1)** | `{uid, title, agent, since, minutes, muted}` (`since` is the last screen change) | a busy session becomes stalled; once per episode. The event is always sent (its payload doesn't depend on prefs); the Swift shell and web UI each check `prefs.notifications.stall` themselves and skip the banner/toast when it's `false` (also skipped when `muted`) |
 
 Within one publish the order is: `sessions`, `screens`, `usage`, `prefs`, `capabilities`,
 `stats`, then `transition`s, then `stall`s, then queued `action`/`toast`/`quota`, then

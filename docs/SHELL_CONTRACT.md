@@ -132,9 +132,8 @@ Events the shell consumes (it ignores unknown fields and tolerates missing ones)
   `stalled_since`. Others (`ribbon`, `rule`, …) are ignored.
 - Prefs fields: `theme`, `sound`, `keep_on_top`, `close_window_on_q`,
   `notifications{enabled,click,stall}`, `stall_minutes`.
-  **Backend request:** `notifications.stall` (bool, default true: stall banners on/off) is
-  read tolerantly, but the backend's `NOTIFICATION_RULES` rejects it today. Until that's
-  added, `stall_minutes: 0` is the only switch.
+  `notifications.stall` (bool, default true) turns stall banners on/off; `stall_minutes: 0`
+  turns stall detection off entirely.
 - Menu dropdown: sessions with `state=="waiting"`, sorted by `state_since` ascending
   (longest wait first), then a "may be stalled" section (sessions with `stalled:true`).
   "Next waiting" cycles through the waiting order.
