@@ -11,6 +11,7 @@ import { replyModel, validateReplyText, replyErrorMessage, normalizeLabel, norma
 
 export const VISIT_DEBOUNCE_MS = 150; // P-56
 export const THEMES = Object.freeze(['system', 'dark', 'light', 'high-contrast']);
+export const HIGH_CONTRAST_KEY = 'omniwatch.highContrast';
 export const AUTOMATION_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation';
 
 /** Native menu / hotkey ids (SHELL_CONTRACT §6) → keymap command ids. */
@@ -373,6 +374,19 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
     return patchPrefs({ keep_on_top: want });
   }
 
+  /**
+   * system/dark/light persist in the backend prefs; high contrast is a
+   * client-local override (the API only accepts system|dark|light), kept in
+   * localStorage where available.
+   */
+  function setTheme(theme) {
+    const hc = theme === 'high-contrast';
+    dispatchUi({ type: 'setHighContrast', on: hc });
+    if (env.localSet) env.localSet(HIGH_CONTRAST_KEY, hc ? '1' : '');
+    if (hc) return true;
+    return patchPrefs({ theme });
+  }
+
   function openPalette() {
     dispatchUi({ type: 'openModal', modal: { type: 'palette', query: '', index: 0 } });
   }
@@ -516,11 +530,11 @@ export function createController({ getServer, dispatchServer, getUi, dispatchUi,
     },
 
     // palette-only / buttons
-    'theme.set': (args) => (THEMES.includes(args.theme) ? patchPrefs({ theme: args.theme }) : undefined),
-    'theme.system': () => patchPrefs({ theme: 'system' }),
-    'theme.dark': () => patchPrefs({ theme: 'dark' }),
-    'theme.light': () => patchPrefs({ theme: 'light' }),
-    'theme.high-contrast': () => patchPrefs({ theme: 'high-contrast' }),
+    'theme.set': (args) => (THEMES.includes(args.theme) ? setTheme(args.theme) : undefined),
+    'theme.system': () => setTheme('system'),
+    'theme.dark': () => setTheme('dark'),
+    'theme.light': () => setTheme('light'),
+    'theme.high-contrast': () => setTheme('high-contrast'),
     'session.mute.toggle': (args) => {
       const s = args && args.uid ? { uid: args.uid } : selected();
       return s ? setMuted(s.uid, args && args.muted) : undefined;

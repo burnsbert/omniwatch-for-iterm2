@@ -10,9 +10,14 @@
 //                                  [--no-animate] [--ready-json]
 //   → open the printed http://127.0.0.1:<port>/auth?token=<token> URL
 //
-// Scenarios: default, onboarding, empty, connecting, not-running,
-// not-authorized, error, stale, many, usage-errors, no-agents, quota,
-// no-colors. `POST /api/v1/demo/scenario {"name":…}` switches at runtime.
+// Matches the real backend as documented in docs/API.md (routes, error codes
+// and validation order, `ok:true` envelopes, bare prefs, action kinds and
+// details, 202 + immediate `action` for color, SSE ids/ordering, no replay,
+// no `sessions` event for poll-only changes, prefs/labels/projects kept
+// across scenario resets). Scenarios: the real ones (default, empty,
+// not-running, not-authorized, many, usage-errors) plus mock-only extras
+// (connecting, error, stale, no-creds, no-agents, onboarding, quota,
+// no-colors). `POST /api/v1/demo/scenario {"name":…}` switches at runtime.
 //
 // Also importable: `const srv = await startMockServer({port:0}); srv.url; await srv.close()`.
 
@@ -32,13 +37,6 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json',
   '.ico': 'image/x-icon',
-};
-const PREF_TYPES = {
-  view: ['split', 'list', 'grid'], sort: ['natural', 'attention', 'agents', 'activity', 'path'],
-  show_dollars: 'boolean', sound: 'boolean', split_ratio: 'number', projects_open: 'boolean', grid_all: 'boolean',
-  usage_strip: ['expanded', 'collapsed'], theme: ['system', 'dark', 'light', 'high-contrast'], font_scale: 'number',
-  notifications: 'object', quick_reply: 'boolean', keep_on_top: 'boolean', close_window_on_q: 'boolean',
-  hint_bar: 'boolean', debug_rule: 'boolean', onboarding_done: 'boolean',
 };
 const SPINNER = ['✶', '✻', '✽', '✢', '·', '✢', '✽', '✻'];
 const BRAILLE = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -289,6 +287,7 @@ function defaultScenario() {
   l6.name = 'tail -f access.log'; l6.display_name = l6.name; l6.title = l6.name; l6.last_change = t - 1;
   u7.is_dashboard = true; u7.name = 'Ultrawatch'; u7.display_name = 'Ultrawatch'; u7.title = 'Ultrawatch';
   st.projects[2].name = 'infra';
+  st.quota_prompt = { pct: 91.0, to: 'you@example.com' }; // the real demo raises it at startup
   // Two more agents so the grid has a real wall.
   st.sessions.push(session({
     uid: 'CCCCCCCC-0001-4CCC-8CCC-000000000001', window_id: 311, window_number: 2, tab_index: 4, session_index: 1,
@@ -352,6 +351,12 @@ function manyScenario() {
   return st;
 }
 
+// The real backend's scenarios (omniwatch/demo/scenario.py) plus mock-only
+// extras for UI states the real demo can't produce on demand.
+export const REAL_SCENARIOS = Object.freeze(['default', 'empty', 'not-running', 'not-authorized', 'many', 'usage-errors']);
+export const MOCK_ONLY_SCENARIOS = Object.freeze(['connecting', 'error', 'stale', 'no-creds', 'no-agents', 'onboarding', 'quota', 'no-colors']);
+const SCENARIO_NAMES = [...REAL_SCENARIOS, ...MOCK_ONLY_SCENARIOS];
+
 function scenario(name) {
   let st;
   switch (name) {
@@ -401,7 +406,7 @@ function scenario(name) {
     case 'onboarding':
       st = defaultScenario(); st.prefs.onboarding_done = false; break;
     case 'quota':
-      st = defaultScenario(); st.quota_prompt = { pct: 91, to: 'me@example.com' }; break;
+      st = defaultScenario(); break;
     case 'no-colors':
       st = defaultScenario(); st.capabilities.tab_colors = false; break;
     default:
@@ -412,10 +417,9 @@ function scenario(name) {
 }
 
 function recomputeSummary(st) {
-  const tabs = new Set(st.sessions.map((s) => `${s.window_id}:${s.tab_index}`));
   const waiting = st.sessions.filter((s) => s.state === 'waiting').sort((a, b) => a.state_since - b.state_since);
   st.summary = {
-    tabs: tabs.size,
+    tabs: st.sessions.length, // API.md §5: summary.tabs counts sessions
     agents: st.sessions.filter((s) => s.agent).length,
     waiting: waiting.length,
     busy: st.sessions.filter((s) => s.state === 'busy').length,
@@ -438,27 +442,145 @@ function diagnosticsFor(st) {
     codex_credentials: st.usage.codex ? st.usage.codex.status !== 'no_credentials' : false,
     config_dir: '/Users/me/.config/omniwatch',
     log_path: '/Users/me/Library/Logs/Omniwatch/backend.log',
+    demo: true,
   };
 }
 
 // ----------------------------------------------------------------- server
 
+class ApiError extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+const bad = (m) => new ApiError(400, 'bad_request', m);
+const invalid = (m) => new ApiError(422, 'invalid', m);
+const notFound = (m) => new ApiError(404, 'not_found', m);
+
+// Same table as omniwatch/server.py ROUTES (the paths this mock implements).
+const ROUTES = [
+  ['GET', '/api/v1/health', 'health'], ['GET', '/api/v1/state', 'state'], ['GET', '/api/v1/events', 'events'],
+  ['GET', '/api/v1/summary', 'summary'], ['GET', '/api/v1/diagnostics', 'diagnostics'],
+  ['POST', '/api/v1/diagnostics/probe-automation', 'probe'],
+  ['POST', '/api/v1/sessions/{uid}/goto', 'goto'], ['POST', '/api/v1/sessions/{uid}/visit', 'visit'],
+  ['PUT', '/api/v1/sessions/{uid}/label', 'label'], ['PUT', '/api/v1/sessions/{uid}/color', 'color'],
+  ['PUT', '/api/v1/sessions/{uid}/mute', 'mute'], ['POST', '/api/v1/sessions/{uid}/close', 'close'],
+  ['POST', '/api/v1/sessions/{uid}/reply', 'reply'], ['POST', '/api/v1/tabs/new', 'new_tab'],
+  ['POST', '/api/v1/iterm/launch', 'launch'], ['POST', '/api/v1/refresh', 'refresh'],
+  ['GET', '/api/v1/prefs', 'get_prefs'], ['PATCH', '/api/v1/prefs', 'patch_prefs'],
+  ['PUT', '/api/v1/projects/{slot}', 'set_project'], ['DELETE', '/api/v1/projects', 'clear_projects'],
+  ['POST', '/api/v1/quota-email/draft', 'quota_draft'], ['POST', '/api/v1/quota-email/skip', 'quota_skip'],
+  ['POST', '/api/v1/plugin/focus', 'plugin_focus'], ['POST', '/api/v1/shutdown', 'shutdown'],
+  ['POST', '/api/v1/demo/step', 'demo_step'], ['POST', '/api/v1/demo/scenario', 'demo_scenario'],
+].map(([m, p, n]) => [m, p.split('/').filter(Boolean), n]);
+
+function matchRoute(method, pathname) {
+  const segs = pathname.split('/').filter(Boolean);
+  const allowed = [];
+  for (const [m, pat, name] of ROUTES) {
+    if (pat.length !== segs.length) continue;
+    const params = {};
+    let ok = true;
+    for (let i = 0; i < pat.length; i += 1) {
+      if (pat[i].startsWith('{')) {
+        const v = decodeURIComponent(segs[i]);
+        if (!v) { ok = false; break; }
+        params[pat[i].slice(1, -1)] = v;
+      } else if (pat[i] !== segs[i]) { ok = false; break; }
+    }
+    if (!ok) continue;
+    if (m === method) return { name, params };
+    allowed.push(m);
+  }
+  if (allowed.length) throw new ApiError(405, 'method_not_allowed', `use ${[...new Set(allowed)].sort().join(', ')}`);
+  throw notFound(`no route for ${pathname}`);
+}
+
+const PROJECT_COLORS = ['blue', 'purple', 'green', 'red', 'yellow'];
+const TAB_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'];
+const isBool = (v) => typeof v === 'boolean';
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+const choice = (...xs) => (v) => xs.includes(v);
+const range = (lo, hi) => (v) => isNum(v) && v >= lo && v <= hi;
+// omniwatch/engine.py PREF_RULES (the 17 keys in API.md §4).
+const PREF_RULES = {
+  view: choice('split', 'list', 'grid'), sort: choice('natural', 'attention', 'agents', 'activity', 'path'),
+  show_dollars: isBool, sound: isBool, split_ratio: range(0.2, 0.8), projects_open: isBool, grid_all: isBool,
+  usage_strip: choice('expanded', 'collapsed'), theme: choice('system', 'dark', 'light'), font_scale: range(0.5, 2.0),
+  notifications: (v) => !!v && typeof v === 'object' && !Array.isArray(v), quick_reply: isBool, keep_on_top: isBool,
+  close_window_on_q: isBool, hint_bar: isBool, debug_rule: isBool, onboarding_done: isBool,
+};
+const NOTIFICATION_RULES = { enabled: isBool, click: choice('goto', 'show') };
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+
+/** engine.clean_text: str, ≤ max, no control characters (except \n when allowed). */
+function cleanText(value, what, max, allowNewline = false) {
+  if (typeof value !== 'string') throw bad(`${what} must be a string`);
+  if ([...value].length > max) throw invalid(`${what} is longer than ${max} characters`);
+  const probe = allowNewline ? value.replace(/\n/g, '') : value;
+  if (CONTROL.test(probe)) throw invalid(`${what} contains control characters`);
+  return value;
+}
+
 export async function startMockServer({
-  port = 0, token = crypto.randomBytes(24).toString('base64url'), scenarioName = 'default', animate = true,
+  port = 0, token = crypto.randomBytes(32).toString('base64url').slice(0, 43), scenarioName = 'default', animate = true,
   quiet = false, requireAuth = true,
 } = {}) {
-  let st = scenario(scenarioName);
+  // Prefs, labels and projects live in the "store" and survive scenario
+  // resets, as in the real engine (API.md §9).
+  const seed = scenario(scenarioName);
+  const store = {
+    prefs: { ...seed.prefs, onboarding_done: false },
+    projects: seed.projects.map((p) => ({ ...p })),
+    labels: {},
+    muted: {},
+    // Raised once per backend run and cleared for good by draft/skip.
+    quota: seed.quota_prompt ? { ...seed.quota_prompt } : null,
+  };
+  let st = null;
   let currentScenario = scenarioName;
-  let seq = st.seq || 1;
+  let seq = 1;
   let actionSeq = 0;
   let frame = 0;
+  let cycle = 0;
+  let generation = 0; // bumps on every scenario reset; stale timers check it
   const started = Date.now();
   const clients = new Set();
   const timers = new Set();
   const log = quiet ? () => {} : (...a) => console.error('[mock]', ...a);
 
+  function load(name) {
+    st = scenario(name);
+    if (name === 'onboarding') store.prefs.onboarding_done = false;
+    st.prefs = store.prefs;
+    st.projects = store.projects;
+    if (name === 'quota' && !store.quota) store.quota = { pct: 91, to: 'you@example.com' };
+    st.quota_prompt = store.quota;
+    st.capabilities = { ...st.capabilities, reply: store.prefs.quick_reply !== false, debug_rule: !!store.prefs.debug_rule };
+    for (const s of st.sessions) applyStore(s);
+    recomputeSummary(st);
+  }
+  function applyStore(s) {
+    if (Object.prototype.hasOwnProperty.call(store.labels, s.uid)) s.label = store.labels[s.uid];
+    if (Object.prototype.hasOwnProperty.call(store.muted, s.uid)) s.muted = store.muted[s.uid];
+    s.display_name = s.label || s.name;
+    s.title = s.label || s.path_display || s.name || s.uid.slice(0, 8);
+    const slot = PROJECT_COLORS.indexOf(s.tab_color);
+    s.project = slot >= 0 ? slot + 1 : null;
+    if (store.prefs.debug_rule) s.rule = s.rule || (s.state === 'waiting' ? 'menu-option' : 'fallback');
+    else delete s.rule;
+  }
+  load(scenarioName);
+
   const later = (ms, fn) => {
-    const t = setTimeout(() => { timers.delete(t); fn(); }, ms);
+    const gen = generation;
+    const t = setTimeout(() => {
+      timers.delete(t);
+      if (gen === generation) fn();
+    }, ms);
     timers.add(t);
     return t;
   };
@@ -471,6 +593,7 @@ export async function startMockServer({
     const chunk = frameSse(event, data);
     for (const res of clients) res.write(chunk);
   }
+  const eventData = (fields) => ({ seq: seq + 1, ...fields });
   function fullState() {
     st.seq = seq;
     st.server_time = nowS();
@@ -478,7 +601,7 @@ export async function startMockServer({
   }
   function pushSessions() {
     recomputeSummary(st);
-    broadcast('sessions', { seq: seq + 1, sessions: st.sessions, summary: st.summary, windows: st.windows, iterm: st.iterm });
+    broadcast('sessions', eventData({ sessions: st.sessions, summary: st.summary, windows: st.windows, iterm: st.iterm }));
   }
   function setScreen(uid, text) {
     const hash = crcHex(text);
@@ -488,44 +611,57 @@ export async function startMockServer({
     return { [uid]: { hash, text } };
   }
   function pushScreens(screens, removed = []) {
-    broadcast('screens', { seq: seq + 1, screens, removed });
+    broadcast('screens', eventData({ screens, removed }));
   }
-  function transition(s, from, to) {
+  // A publish is sessions → screens → transitions (API.md §6 ordering).
+  function transition(s, from, to, pending) {
     s.state = to;
     s.state_since = nowS();
-    if (to === 'waiting') s.attention = true;
-    else s.attention = false;
-    broadcast('transition', {
-      uid: s.uid, from, to, at: nowS(), title: s.title, agent: s.agent, prompt: s.prompt, muted: s.muted,
-    });
+    s.attention = to === 'waiting';
+    s.fresh_until = null;
+    pending.push({ uid: s.uid, from, to, at: nowS(), title: s.title, agent: s.agent, prompt: s.prompt, muted: s.muted });
   }
-  function actionResult(kind, uid, ok, detail = '') {
+  function publish({ screens = null, removed = [], transitions = [], sessions = true } = {}) {
+    if (sessions) pushSessions();
+    if ((screens && Object.keys(screens).length) || removed.length) pushScreens(screens || {}, removed);
+    for (const t of transitions) broadcast('transition', t);
+  }
+  function action(kind, uid, detail, ok = true, delay = 250) {
     const id = `a-${++actionSeq}`;
-    later(250, () => broadcast('action', { id, kind, uid, ok, detail }));
+    const send = () => broadcast('action', { id, kind, uid, ok, detail });
+    if (delay) later(delay, send);
+    else send();
     return id;
   }
   function usageForPrefs() {
     const u = clone(st.usage);
     const lim = u.claude && u.claude.limits ? u.claude.limits.find((l) => l.id === 'claude.monthly') : null;
-    if (lim) lim.limit_display = st.prefs.show_dollars ? '$182 of $200' : null;
+    if (lim) lim.limit_display = store.prefs.show_dollars ? '$200' : null;
     return u;
   }
+  function requireSession(uid) {
+    const s = st.sessions.find((x) => x.uid === uid);
+    if (!s) throw notFound('session not found');
+    return s;
+  }
+  function requireIterm() {
+    if (st.iterm.status !== 'ok') throw new ApiError(503, 'iterm_unavailable', `iTerm2 is ${st.iterm.status}`);
+  }
 
-  // Scripted timeline: the busy Claude (1.1) needs an edit approval every
-  // ~30 s; the busy Codex keeps spinning; the log tails.
-  let cycle = 0;
+  // Scripted timeline: the busy Claude (AAAA-0001) needs an edit approval
+  // every ~30 s; the busy Codex keeps spinning; the log tails.
   function tick() {
     frame += 1;
     cycle += 1;
-    st.iterm.last_poll_at = nowS();
+    st.iterm.last_poll_at = nowS(); // rides along; never triggers a sessions event (API.md §10.11)
     const screens = {};
+    const pending = [];
     const c1 = st.sessions.find((s) => s.uid === 'AAAAAAAA-0001-4AAA-8AAA-000000000001');
     const cx = st.sessions.find((s) => s.uid === 'CCCCCCCC-0001-4CCC-8CCC-000000000001');
     const log6 = st.sessions.find((s) => s.uid === 'BBBBBBBB-0002-4BBB-8BBB-000000000002');
     let sessionsChanged = false;
-    if (c1 && c1.state === 'busy') {
+    if (c1 && c1.state === 'busy' && !c1._replied) {
       Object.assign(screens, setScreen(c1.uid, SCREENS.claudeBusy(frame, 12 + cycle)));
-      c1.last_change = nowS();
       if (cycle % 30 === 8) {
         c1.prompt = {
           question: 'Do you want to make this edit to retry.ts?',
@@ -538,311 +674,390 @@ export async function startMockServer({
         };
         c1.is_processing = false;
         Object.assign(screens, setScreen(c1.uid, SCREENS.claudeEdit()));
-        transition(c1, 'busy', 'waiting');
-        sessionsChanged = true;
+        transition(c1, 'busy', 'waiting', pending);
       }
+      c1.last_change = nowS();
+      sessionsChanged = true;
     } else if (c1 && c1.state === 'waiting' && cycle % 30 === 0) {
-      // "Answered in iTerm2" — goes back to work.
-      c1.prompt = null; c1.is_processing = true;
-      transition(c1, 'waiting', 'busy');
+      c1.prompt = null;
+      c1.is_processing = true;
+      Object.assign(screens, setScreen(c1.uid, SCREENS.claudeBusy(frame, 1)));
+      transition(c1, 'waiting', 'busy', pending);
       sessionsChanged = true;
     }
     for (const s of st.sessions) {
       if (s._replied && s.state === 'busy') {
         Object.assign(screens, setScreen(s.uid, SCREENS.claudeReplied(s._replied, frame)));
         s.last_change = nowS();
+        sessionsChanged = true;
       }
     }
     if (cx && cx.state === 'busy') {
       Object.assign(screens, setScreen(cx.uid, SCREENS.codexBusy(frame)));
       cx.last_change = nowS();
+      sessionsChanged = true;
     }
     if (log6 && frame % 2 === 0) {
       Object.assign(screens, setScreen(log6.uid, SCREENS.log(30 + frame / 2)));
       log6.last_change = nowS();
-      sessionsChanged = sessionsChanged || frame % 10 === 0;
+      sessionsChanged = true;
     }
-    if (Object.keys(screens).length) pushScreens(screens);
-    if (sessionsChanged) pushSessions();
+    publish({ screens, transitions: pending, sessions: sessionsChanged });
   }
 
   let interval = null;
   if (animate) interval = setInterval(tick, 1000);
-
-  // Heartbeat (§4.4.2): ": ping" every 15 s.
   const heartbeat = setInterval(() => { for (const res of clients) res.write(': ping\n\n'); }, 15000);
 
-  function sendJson(res, status, body, headers = {}) {
-    const data = JSON.stringify(body);
-    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
-    res.end(data);
+  function headers(extra = {}) {
+    return {
+      'Content-Security-Policy': CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+      'X-Frame-Options': 'DENY', ...extra,
+    };
   }
-  function err(res, status, code, message) {
-    sendJson(res, status, { ok: false, error: { code, message } });
+  function sendJson(res, status, body) {
+    res.writeHead(status, headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }));
+    res.end(JSON.stringify(body));
+  }
+  function sendError(res, e) {
+    sendJson(res, e.status, { ok: false, error: { code: e.code, message: e.message } });
   }
   function readBody(req) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      if (req.headers['transfer-encoding']) { reject(bad('chunked bodies are not supported')); return; }
       let raw = '';
-      req.on('data', (c) => { raw += c; if (raw.length > 1e6) req.destroy(); });
+      req.on('data', (c) => { raw += c; if (raw.length > 262144) req.destroy(); });
       req.on('end', () => {
-        if (!raw) return resolve({ ok: true, body: {} });
-        try { return resolve({ ok: true, body: JSON.parse(raw) }); } catch (_) { return resolve({ ok: false }); }
+        if (!raw) { resolve({}); return; }
+        let body;
+        try { body = JSON.parse(raw); } catch (_) { reject(bad('invalid JSON')); return; }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) { reject(bad('body must be a JSON object')); return; }
+        resolve(body);
       });
     });
   }
   function authorized(req) {
     if (!requireAuth) return true;
     const auth = req.headers.authorization || '';
-    if (auth === `Bearer ${token}`) return true;
+    if (/^bearer /i.test(auth) && auth.slice(7) === token) return true;
     const cookie = req.headers.cookie || '';
     return cookie.split(/;\s*/).some((c) => c === `ow_session=${token}`);
   }
-
-  function serveStatic(req, res, pathname) {
-    let rel = decodeURIComponent(pathname);
-    if (rel === '/') rel = '/index.html';
-    const file = path.resolve(WEB_ROOT, `.${rel}`);
-    if (!file.startsWith(WEB_ROOT + path.sep)) return err(res, 404, 'not_found', 'not found');
+  function serveStatic(res, pathname) {
+    const segs = pathname.split('/').slice(1);
+    const rel = pathname === '/' ? 'index.html' : segs.join('/');
+    const badPath = segs.some((x) => x === '..' || x === '.' || x === '' || x.includes('\\') || x.includes('\0'));
+    const file = path.resolve(WEB_ROOT, rel);
+    const deny = () => {
+      res.writeHead(404, headers({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }));
+      res.end('not found\n');
+    };
+    if ((badPath && pathname !== '/') || !file.startsWith(WEB_ROOT + path.sep)) { deny(); return; }
     fs.readFile(file, (e, buf) => {
-      if (e) return err(res, 404, 'not_found', 'not found');
-      res.writeHead(200, {
-        'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
-        'Content-Security-Policy': CSP,
-        'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff',
-      });
-      return res.end(buf);
+      if (e) { deny(); return; }
+      res.writeHead(200, headers({ 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }));
+      res.end(buf);
     });
-    return undefined;
   }
+
+  // ---- routes (validation order mirrors omniwatch/engine.py) -------------
+  const routes = {
+    health: () => [200, { ok: true, version: st.version, demo: true, pid: process.pid, uptime_s: (Date.now() - started) / 1000 }],
+    state: () => [200, fullState()],
+    summary: () => {
+      recomputeSummary(st);
+      const waiting = st.sessions.filter((x) => x.state === 'waiting').sort((a, b) => a.state_since - b.state_since);
+      return [200, {
+        tabs: st.summary.tabs, agents: st.summary.agents, waiting: st.summary.waiting, busy: st.summary.busy,
+        waiting_sessions: waiting.map((x) => ({ uid: x.uid, title: x.title, since: x.state_since, agent: x.agent })),
+      }];
+    },
+    diagnostics: () => [200, diagnosticsFor(st)],
+    probe: () => {
+      const id = action('probe', null, '');
+      if (st.iterm.status === 'not_authorized') {
+        later(1200, () => {
+          const fresh = scenario('default');
+          st.sessions = fresh.sessions; st.screens = fresh.screens; st.iterm = fresh.iterm;
+          st.sessions.forEach(applyStore);
+          publish({ screens: st.screens });
+        });
+      }
+      return [202, { ok: true, action_id: id }];
+    },
+    goto: ({ uid }) => {
+      const s = requireSession(uid);
+      requireIterm();
+      return [202, { ok: true, action_id: action('goto', uid, `→ tab ${s.tab_label}`) }];
+    },
+    visit: ({ uid }) => {
+      const s = requireSession(uid);
+      if (s.attention) { s.attention = false; publish(); }
+      return [200, { ok: true }];
+    },
+    plugin_focus: (_p, body) => {
+      if (typeof body.uid !== 'string' || !body.uid) throw bad('uid is required');
+      return routes.visit({ uid: body.uid });
+    },
+    label: ({ uid }, body) => {
+      if (!('label' in body)) throw bad('label is required');
+      const label = cleanText(body.label, 'label', 80).trim();
+      const s = requireSession(uid);
+      store.labels[uid] = label;
+      applyStore(s);
+      publish();
+      return [200, { ok: true, label }];
+    },
+    color: ({ uid }, body) => {
+      let color;
+      if ('project' in body) {
+        const n = body.project;
+        if (!Number.isInteger(n) || typeof n === 'boolean') throw bad('project must be an integer');
+        if (n < 1 || n > 5) throw invalid('project must be 1-5');
+        color = PROJECT_COLORS[n - 1];
+      } else if ('color' in body) {
+        color = body.color;
+        if (color !== null && typeof color !== 'string') throw bad('color must be a string or null');
+        if (color !== null && !TAB_COLORS.includes(color)) throw invalid(`unknown color '${color}'`);
+      } else throw bad('project or color is required');
+      const s = requireSession(uid);
+      if (st.capabilities.tab_colors === false) throw new ApiError(503, 'tab_colors_unavailable', 'tab colors unavailable — see onboarding step 2');
+      let detail;
+      if (color === null) detail = `tab ${s.tab_label}: color cleared`;
+      else {
+        const slot = PROJECT_COLORS.indexOf(color) + 1;
+        const project = slot ? store.projects[slot - 1].name : '';
+        detail = `tab ${s.tab_label} → ${color}${project ? ` (${project})` : ''}`;
+      }
+      const id = action('color', uid, detail, true, 0); // emitted immediately (API.md §10.2)
+      later(300, () => {
+        s.tab_color = color;
+        applyStore(s);
+        publish();
+      });
+      return [202, { ok: true, action_id: id }];
+    },
+    mute: ({ uid }, body) => {
+      if (!isBool(body.muted)) throw bad('muted must be a boolean');
+      const s = requireSession(uid);
+      store.muted[uid] = body.muted;
+      applyStore(s);
+      publish();
+      return [200, { ok: true, muted: body.muted }];
+    },
+    close: ({ uid }, body) => {
+      if (body.confirm !== true) throw bad('confirm must be true');
+      const s = requireSession(uid);
+      requireIterm();
+      const id = action('close', uid, '', true, 400);
+      later(350, () => {
+        st.sessions = st.sessions.filter((x) => !(x.window_id === s.window_id && x.tab_index === s.tab_index));
+        const removed = Object.keys(st.screens).filter((k) => !st.sessions.some((x) => x.uid === k));
+        removed.forEach((k) => delete st.screens[k]);
+        publish({ removed });
+      });
+      return [202, { ok: true, action_id: id }];
+    },
+    reply: ({ uid }, body) => {
+      const { text } = body;
+      if (typeof text !== 'string') throw bad('text must be a string');
+      if ('submit' in body && !isBool(body.submit)) throw bad('submit must be a boolean');
+      if (typeof body.expect_hash !== 'string' || !body.expect_hash) throw bad('expect_hash is required');
+      if (!text) throw invalid('text is empty');
+      cleanText(text, 'text', 2000, true);
+      const s = requireSession(uid);
+      if (!store.prefs.quick_reply) throw invalid('quick reply is turned off in Settings');
+      requireIterm();
+      if (!s.agent || s.state !== 'waiting') throw invalid('not an agent session waiting for input');
+      if (body.expect_hash.toLowerCase() !== s.screen_hash) throw new ApiError(409, 'stale_screen', 'the screen changed');
+      if (!st.iterm.last_poll_at || nowS() - st.iterm.last_poll_at > 5) throw new ApiError(409, 'stale_screen', 'the snapshot is too old');
+      const id = action('reply', uid, '', true, 600);
+      later(550, () => {
+        const opt = ((s.prompt && s.prompt.options) || []).find((o) => o.key === text);
+        s._replied = opt ? `${opt.key}. ${opt.label}` : JSON.stringify(text);
+        s.prompt = null;
+        s.is_processing = true;
+        const pending = [];
+        transition(s, 'waiting', 'busy', pending);
+        publish({ screens: setScreen(s.uid, SCREENS.claudeReplied(s._replied, frame)), transitions: pending });
+        later(8000, () => {
+          if (s.state !== 'busy' || !st.sessions.includes(s)) return;
+          delete s._replied;
+          const p2 = [];
+          transition(s, 'busy', 'idle', p2);
+          s.is_processing = false;
+          s.last_change = nowS();
+          s.fresh_until = nowS() + 30;
+          publish({ screens: setScreen(s.uid, SCREENS.docs()), transitions: p2 });
+        });
+      });
+      return [202, { ok: true, action_id: id }];
+    },
+    new_tab: () => {
+      requireIterm();
+      const id = action('new_tab', null, 'opening new tab…', true, 500);
+      later(450, () => {
+        const w1 = st.sessions.filter((x) => x.window_id === 104);
+        const tab = w1.reduce((mx, x) => Math.max(mx, x.tab_index), 0) + 1;
+        const uid2 = crypto.randomUUID().toUpperCase();
+        st.sessions.push(session({ uid: uid2, window_id: 104, window_number: 1, tab_index: tab, tab_label: `1.${tab}`, state: 'quiet', last_change: nowS(), state_since: nowS() }));
+        st.sessions.sort((a, b) => (a.window_id - b.window_id) || (a.tab_index - b.tab_index));
+        publish({ screens: setScreen(uid2, 'Last login: Fri Sep 25 10:02:11 on ttys020\n~ ❯ ') });
+      });
+      return [202, { ok: true, action_id: id }];
+    },
+    launch: () => {
+      const id = action('launch', null, 'launching iTerm2…');
+      if (st.iterm.status === 'not_running') {
+        later(1200, () => {
+          const fresh = scenario('default');
+          st.sessions = fresh.sessions; st.screens = fresh.screens; st.iterm = fresh.iterm; st.usage = fresh.usage;
+          st.sessions.forEach(applyStore);
+          publish({ screens: st.screens });
+          broadcast('usage', eventData({ usage: usageForPrefs() }));
+        });
+      }
+      return [202, { ok: true, action_id: id }];
+    },
+    refresh: () => {
+      broadcast('toast', { level: 'info', message: 'refreshing…' });
+      return [200, { ok: true }];
+    },
+    get_prefs: () => [200, store.prefs],
+    patch_prefs: (_p, body) => {
+      const updates = {};
+      for (const [key, value] of Object.entries(body)) {
+        const rule = PREF_RULES[key];
+        if (!rule) throw invalid(`unknown pref '${key}'`);
+        if (key === 'notifications') {
+          const okN = rule(value) && Object.entries(value).every(([k, v]) => NOTIFICATION_RULES[k] && NOTIFICATION_RULES[k](v));
+          if (!okN) throw invalid('bad value for notifications');
+          updates[key] = { ...store.prefs.notifications, ...value };
+        } else if (!rule(value)) {
+          throw invalid(`bad value for ${key}`);
+        } else {
+          updates[key] = (key === 'split_ratio' || key === 'font_scale') ? Math.round(value * 100) / 100 : value;
+        }
+      }
+      const dollars = 'show_dollars' in updates && updates.show_dollars !== store.prefs.show_dollars;
+      const caps = ('quick_reply' in updates && updates.quick_reply !== store.prefs.quick_reply)
+        || ('debug_rule' in updates && updates.debug_rule !== store.prefs.debug_rule);
+      const rule = 'debug_rule' in updates && updates.debug_rule !== store.prefs.debug_rule;
+      Object.assign(store.prefs, updates);
+      st.prefs = store.prefs;
+      if (rule) {
+        st.sessions.forEach(applyStore);
+        pushSessions();
+      }
+      if (dollars) broadcast('usage', eventData({ usage: usageForPrefs() }));
+      broadcast('prefs', eventData({ prefs: store.prefs, projects: store.projects }));
+      if (caps) {
+        st.capabilities = { ...st.capabilities, reply: !!store.prefs.quick_reply, debug_rule: !!store.prefs.debug_rule };
+        broadcast('capabilities', st.capabilities);
+      }
+      return [200, store.prefs];
+    },
+    set_project: ({ slot }, body) => {
+      const n = /^\d+$/.test(slot) ? Number(slot) : NaN;
+      if (!(n >= 1 && n <= 5)) throw notFound('no such project slot');
+      if (!('name' in body)) throw bad('name is required');
+      const name = cleanText(body.name, 'name', 80).trim();
+      store.projects[n - 1] = { ...store.projects[n - 1], name };
+      broadcast('prefs', eventData({ prefs: store.prefs, projects: store.projects }));
+      return [200, { ok: true, project: store.projects[n - 1] }];
+    },
+    clear_projects: (_p, body) => {
+      if (body.confirm !== true) throw bad('confirm must be true');
+      store.projects.forEach((p, i) => { store.projects[i] = { ...p, name: '' }; });
+      broadcast('prefs', eventData({ prefs: store.prefs, projects: store.projects }));
+      return [200, { ok: true }];
+    },
+    quota_draft: () => {
+      if (!st.quota_prompt) throw notFound('no quota prompt pending');
+      store.quota = null;
+      st.quota_prompt = null;
+      broadcast('state', fullState());
+      return [200, { ok: true, opened: false }];
+    },
+    quota_skip: () => {
+      if (!st.quota_prompt) throw notFound('no quota prompt pending');
+      store.quota = null;
+      st.quota_prompt = null;
+      broadcast('state', fullState());
+      return [200, { ok: true }];
+    },
+    shutdown: () => {
+      setTimeout(() => close(), 50);
+      return [200, { ok: true }];
+    },
+    demo_step: (_p, body) => {
+      const seconds = 'seconds' in body ? body.seconds : 0;
+      if (!isNum(seconds) || typeof seconds === 'boolean') throw bad('seconds must be a number');
+      if (seconds < 0 || seconds > 86400) throw invalid('seconds must be between 0 and 86400');
+      const n = Math.round(seconds);
+      for (let i = 0; i < n; i += 1) tick();
+      return [200, { ok: true, seq }];
+    },
+    demo_scenario: (_p, body) => {
+      if (typeof body.name !== 'string') throw bad('name must be a string');
+      if (!SCENARIO_NAMES.includes(body.name)) throw invalid(`unknown scenario '${body.name}'`);
+      generation += 1;
+      for (const t of timers) clearTimeout(t);
+      timers.clear();
+      currentScenario = body.name;
+      load(currentScenario);
+      cycle = 0;
+      broadcast('state', fullState());
+      return [200, { ok: true, seq, scenario: currentScenario }];
+    },
+  };
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
     const { pathname } = url;
-    const host = req.headers.host || '';
     const addr = server.address();
     const okHosts = [`127.0.0.1:${addr.port}`, `localhost:${addr.port}`];
-    if (!okHosts.includes(host)) return err(res, 403, 'forbidden', 'bad Host header');
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const origin = req.headers.origin;
-      const bearer = (req.headers.authorization || '').startsWith('Bearer ');
-      // §4.5: Origin must equal ours, or be absent with a Bearer token (CSRF).
-      if (origin ? !okHosts.map((h) => `http://${h}`).includes(origin) : (requireAuth && !bearer)) {
-        return err(res, 403, 'forbidden', 'bad Origin');
+    try {
+      if (!okHosts.includes(req.headers.host || '')) throw new ApiError(403, 'forbidden', 'bad Host header');
+      if (pathname === '/auth') {
+        if (req.method !== 'GET') throw new ApiError(405, 'method_not_allowed', 'use GET');
+        if (url.searchParams.get('token') !== token) throw new ApiError(401, 'unauthorized', 'bad token');
+        res.writeHead(302, headers({ Location: '/', 'Set-Cookie': `ow_session=${token}; HttpOnly; SameSite=Strict; Path=/`, 'Content-Type': 'text/plain; charset=utf-8' }));
+        res.end();
+        return;
       }
-    }
-    if (pathname === '/auth') {
-      if (url.searchParams.get('token') !== token) return err(res, 401, 'unauthorized', 'bad token');
-      res.writeHead(302, { Location: '/', 'Set-Cookie': `ow_session=${token}; HttpOnly; SameSite=Strict; Path=/` });
-      return res.end();
-    }
-    if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
-    if (!authorized(req)) return err(res, 401, 'unauthorized', 'missing or bad token');
-
-    const m = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/(goto|visit|label|color|mute|close|reply)$/);
-    const route = `${req.method} ${m ? `/api/v1/sessions/:uid/${m[2]}` : pathname}`;
-    const uid = m ? decodeURIComponent(m[1]) : null;
-    const s = uid ? st.sessions.find((x) => x.uid === uid) : null;
-    const needsBody = ['PUT', 'POST', 'PATCH', 'DELETE'].includes(req.method);
-    const parsed = needsBody ? await readBody(req) : { ok: true, body: {} };
-    if (!parsed.ok) return err(res, 400, 'bad_request', 'invalid JSON');
-    const body = parsed.body || {};
-    if (m && !s) return err(res, 404, 'not_found', 'session not found');
-
-    switch (route) {
-      case 'GET /api/v1/health':
-        return sendJson(res, 200, { ok: true, version: st.version, demo: true, pid: process.pid, uptime_s: (Date.now() - started) / 1000 });
-      case 'GET /api/v1/state':
-        return sendJson(res, 200, fullState());
-      case 'GET /api/v1/summary': {
-        recomputeSummary(st);
-        const waiting = st.sessions.filter((x) => x.state === 'waiting').sort((a, b) => a.state_since - b.state_since);
-        return sendJson(res, 200, {
-          tabs: st.summary.tabs, agents: st.summary.agents, waiting: st.summary.waiting, busy: st.summary.busy,
-          waiting_sessions: waiting.map((x) => ({ uid: x.uid, title: x.title, since: x.state_since, agent: x.agent })),
-        });
+      if (!pathname.startsWith('/api/')) {
+        if (req.method !== 'GET' && req.method !== 'HEAD') throw notFound(pathname);
+        serveStatic(res, pathname);
+        return;
       }
-      case 'GET /api/v1/events': {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive',
-        });
-        res.write('retry: 1000\n\n');
-        res.write(frameSse('hello', { version: st.version, server_time: nowS(), demo: true }));
-        res.write(frameSse('state', fullState()));
+      if (!authorized(req)) throw new ApiError(401, 'unauthorized', 'missing or bad token');
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        // §4.5: Origin must equal ours, or be absent with a Bearer token (CSRF).
+        const origin = req.headers.origin;
+        const bearer = /^bearer /i.test(req.headers.authorization || '');
+        if (origin ? !okHosts.map((h) => `http://${h}`).includes(origin) : (requireAuth && !bearer)) {
+          throw new ApiError(403, 'forbidden', 'bad Origin');
+        }
+      }
+      const { name, params } = matchRoute(req.method, pathname);
+      if (name === 'events') {
+        res.writeHead(200, headers({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' }));
+        // hello + state carry the current seq; nothing is replayed (API.md §6).
+        res.write(`id: ${seq}\nevent: hello\ndata: ${JSON.stringify({ version: st.version, server_time: nowS(), demo: true })}\n\n`);
+        res.write(`id: ${seq}\nevent: state\ndata: ${JSON.stringify(fullState())}\n\n`);
         clients.add(res);
         req.on('close', () => clients.delete(res));
-        return undefined;
+        return;
       }
-      case 'GET /api/v1/diagnostics':
-        return sendJson(res, 200, diagnosticsFor(st));
-      case 'POST /api/v1/diagnostics/probe-automation': {
-        const id = actionResult('probe', null, true);
-        if (st.iterm.status === 'not_authorized') {
-          later(1200, () => {
-            const fresh = defaultScenario();
-            st.sessions = fresh.sessions; st.screens = fresh.screens; st.iterm = fresh.iterm;
-            broadcast('screens', { seq: seq + 1, screens: st.screens, removed: [] });
-            pushSessions();
-          });
-        }
-        return sendJson(res, 202, { ok: true, action_id: id });
-      }
-      case 'POST /api/v1/sessions/:uid/goto':
-        return sendJson(res, 202, { ok: true, action_id: actionResult('goto', uid, true) });
-      case 'POST /api/v1/sessions/:uid/visit':
-        if (s.attention) { s.attention = false; pushSessions(); }
-        return sendJson(res, 200, { ok: true });
-      case 'PUT /api/v1/sessions/:uid/label': {
-        if (typeof body.label !== 'string') return err(res, 422, 'invalid', 'label must be a string');
-        const label = body.label.trim().slice(0, 80);
-        s.label = label; s.display_name = label || s.name; s.title = label || s.path_display || s.name;
-        pushSessions();
-        return sendJson(res, 200, { ok: true, label });
-      }
-      case 'PUT /api/v1/sessions/:uid/color': {
-        if (st.capabilities.tab_colors === false) return err(res, 503, 'tab_colors_unavailable', 'tab colors unavailable');
-        let color;
-        if (Number.isInteger(body.project) && body.project >= 1 && body.project <= 5) color = st.projects[body.project - 1].color;
-        else if (body.color === null || typeof body.color === 'string') color = body.color;
-        else return err(res, 422, 'invalid', 'project 1..5 or color required');
-        const id = actionResult('color', uid, true);
-        later(300, () => {
-          s.tab_color = color;
-          const p = st.projects.find((x) => x.color === color);
-          s.project = p ? p.slot : null;
-          pushSessions();
-        });
-        return sendJson(res, 202, { ok: true, action_id: id });
-      }
-      case 'PUT /api/v1/sessions/:uid/mute':
-        if (typeof body.muted !== 'boolean') return err(res, 422, 'invalid', 'muted must be a boolean');
-        s.muted = body.muted;
-        pushSessions();
-        return sendJson(res, 200, { ok: true, muted: s.muted });
-      case 'POST /api/v1/sessions/:uid/close': {
-        if (body.confirm !== true) return err(res, 400, 'bad_request', 'confirm required');
-        const id = actionResult('close', uid, true);
-        later(400, () => {
-          st.sessions = st.sessions.filter((x) => !(x.window_id === s.window_id && x.tab_index === s.tab_index));
-          const removed = Object.keys(st.screens).filter((k) => !st.sessions.some((x) => x.uid === k));
-          removed.forEach((k) => delete st.screens[k]);
-          pushScreens({}, removed);
-          pushSessions();
-        });
-        return sendJson(res, 202, { ok: true, action_id: id });
-      }
-      case 'POST /api/v1/sessions/:uid/reply': {
-        if (!s.agent || s.state !== 'waiting') return err(res, 422, 'invalid', 'not an agent session waiting for input');
-        if (typeof body.text !== 'string' || !body.text.length || body.text.length > 2000) return err(res, 400, 'bad_request', 'text must be 1..2000 chars');
-        // eslint-disable-next-line no-control-regex
-        if (/[\u0000-\u0009\u000b-\u001f\u007f]/.test(body.text)) return err(res, 400, 'bad_request', 'control characters are not allowed');
-        const age = nowS() - (st.iterm.last_poll_at || 0);
-        if (body.expect_hash !== s.screen_hash || age > 5) return err(res, 409, 'stale_screen', 'the screen changed since the reply was composed');
-        const id = actionResult('reply', uid, true);
-        later(600, () => {
-          const opt = (s.prompt && s.prompt.options || []).find((o) => o.key === body.text);
-          s._replied = opt ? `${opt.key}. ${opt.label}` : JSON.stringify(body.text);
-          s.prompt = null; s.is_processing = true;
-          transition(s, 'waiting', 'busy');
-          pushScreens(setScreen(s.uid, SCREENS.claudeReplied(s._replied, frame)));
-          pushSessions();
-          later(8000, () => {
-            if (s.state !== 'busy') return;
-            delete s._replied;
-            transition(s, 'busy', 'idle');
-            s.is_processing = false; s.last_change = nowS(); s.fresh_until = nowS() + 30;
-            pushScreens(setScreen(s.uid, SCREENS.docs()));
-            pushSessions();
-          });
-        });
-        return sendJson(res, 202, { ok: true, action_id: id });
-      }
-      case 'POST /api/v1/tabs/new': {
-        const id = actionResult('new', null, true);
-        later(500, () => {
-          const w1 = st.sessions.filter((x) => x.window_id === 104);
-          const tab = w1.reduce((mx, x) => Math.max(mx, x.tab_index), 0) + 1;
-          const uid2 = crypto.randomUUID().toUpperCase();
-          const text = 'Last login: Fri Sep 25 10:02:11 on ttys020\n~ ❯ ';
-          st.sessions.push(session({ uid: uid2, window_id: 104, window_number: 1, tab_index: tab, tab_label: `1.${tab}`, state: 'quiet', last_change: nowS(), state_since: nowS() }));
-          st.sessions.sort((a, b) => (a.window_id - b.window_id) || (a.tab_index - b.tab_index));
-          pushScreens(setScreen(uid2, text));
-          pushSessions();
-        });
-        return sendJson(res, 202, { ok: true, action_id: id });
-      }
-      case 'POST /api/v1/iterm/launch': {
-        const id = actionResult('launch', null, true);
-        if (st.iterm.status === 'not_running') {
-          later(1200, () => {
-            const fresh = defaultScenario();
-            st.sessions = fresh.sessions; st.screens = fresh.screens; st.iterm = fresh.iterm; st.usage = fresh.usage;
-            broadcast('screens', { seq: seq + 1, screens: st.screens, removed: [] });
-            broadcast('usage', { seq: seq + 1, usage: usageForPrefs() });
-            pushSessions();
-          });
-        }
-        return sendJson(res, 202, { ok: true, action_id: id });
-      }
-      case 'POST /api/v1/refresh':
-        broadcast('toast', { level: 'info', message: 'refreshing…' });
-        later(300, () => { st.iterm.last_poll_at = nowS(); pushSessions(); });
-        return sendJson(res, 200, { ok: true });
-      case 'GET /api/v1/prefs':
-        return sendJson(res, 200, st.prefs);
-      case 'PATCH /api/v1/prefs': {
-        for (const [k, v] of Object.entries(body)) {
-          const t = PREF_TYPES[k];
-          if (!t) return err(res, 422, 'invalid', `unknown pref ${k}`);
-          const ok = Array.isArray(t) ? t.includes(v) : (typeof v === t && v !== null); // eslint-disable-line valid-typeof
-          if (!ok) return err(res, 422, 'invalid', `bad value for ${k}`);
-        }
-        const dollarsChanged = 'show_dollars' in body && body.show_dollars !== st.prefs.show_dollars;
-        st.prefs = { ...st.prefs, ...body };
-        if ('split_ratio' in body) st.prefs.split_ratio = Math.max(0.2, Math.min(0.8, body.split_ratio));
-        if ('font_scale' in body) st.prefs.font_scale = Math.max(0.8, Math.min(1.6, body.font_scale));
-        broadcast('prefs', { seq: seq + 1, prefs: st.prefs, projects: st.projects });
-        if (dollarsChanged) broadcast('usage', { seq: seq + 1, usage: usageForPrefs() });
-        return sendJson(res, 200, st.prefs);
-      }
-      case 'DELETE /api/v1/projects':
-        if (body.confirm !== true) return err(res, 400, 'bad_request', 'confirm required');
-        st.projects = st.projects.map((p) => ({ ...p, name: '' }));
-        broadcast('prefs', { seq: seq + 1, prefs: st.prefs, projects: st.projects });
-        return sendJson(res, 200, { ok: true, projects: st.projects });
-      case 'POST /api/v1/quota-email/draft':
-      case 'POST /api/v1/quota-email/skip':
-        st.quota_prompt = null;
-        return sendJson(res, 200, { ok: true });
-      case 'POST /api/v1/shutdown':
-        sendJson(res, 200, { ok: true });
-        setTimeout(() => close(), 50);
-        return undefined;
-      case 'POST /api/v1/demo/step': {
-        const n = Math.max(1, Math.round(Number(body.seconds) || 1));
-        for (let i = 0; i < n; i += 1) tick();
-        return sendJson(res, 200, { ok: true, seq });
-      }
-      case 'POST /api/v1/demo/scenario': {
-        currentScenario = String(body.name || 'default');
-        st = scenario(currentScenario);
-        cycle = 0;
-        broadcast('state', fullState());
-        return sendJson(res, 200, { ok: true, seq, scenario: currentScenario });
-      }
-      case 'POST /api/v1/plugin/focus':
-        return sendJson(res, 200, { ok: true });
-      default: {
-        const pm = pathname.match(/^\/api\/v1\/projects\/(\d+)$/);
-        if (pm && req.method === 'PUT') {
-          const slot = Number(pm[1]);
-          if (slot < 1 || slot > 5) return err(res, 404, 'not_found', 'no such project slot');
-          if (typeof body.name !== 'string') return err(res, 422, 'invalid', 'name must be a string');
-          st.projects[slot - 1] = { ...st.projects[slot - 1], name: body.name.trim().slice(0, 40) };
-          broadcast('prefs', { seq: seq + 1, prefs: st.prefs, projects: st.projects });
-          return sendJson(res, 200, { ok: true, project: st.projects[slot - 1] });
-        }
-        return err(res, 404, 'not_found', `no route ${req.method} ${pathname}`);
+      const body = req.method === 'GET' ? {} : await readBody(req);
+      const [status, out] = routes[name](params, body);
+      sendJson(res, status, out);
+    } catch (e) {
+      if (e instanceof ApiError) sendError(res, e);
+      else {
+        console.error('[mock] internal error', e);
+        sendError(res, new ApiError(500, 'internal', 'internal error'));
       }
     }
   });
@@ -853,6 +1068,7 @@ export async function startMockServer({
   log(`scenario ${currentScenario}; open ${url}/auth?token=${token}`);
 
   async function close() {
+    generation += 1;
     if (interval) clearInterval(interval);
     clearInterval(heartbeat);
     for (const t of timers) clearTimeout(t);

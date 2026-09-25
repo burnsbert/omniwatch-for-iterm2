@@ -101,6 +101,8 @@ test('drawer lines clamp 3..40; misc setters', () => {
   assert.equal(r(initialUi, { type: 'setNotifyPermission', status: 'granted' }).notifyPermission, 'granted');
   assert.deepEqual(r(initialUi, { type: 'setDiagnostics', diagnostics: { a: 1 } }).diagnostics, { a: 1 });
   assert.equal(r(initialUi, { type: 'setPinned', pinned: true }), initialUi);
+  assert.equal(r(initialUi, { type: 'setHighContrast', on: false }), initialUi);
+  assert.equal(r(initialUi, { type: 'setHighContrast', on: true }).highContrast, true);
   assert.equal(r(initialUi, { type: 'setPinned', pinned: false }).pinnedPreview, false);
 });
 

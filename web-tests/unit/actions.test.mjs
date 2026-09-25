@@ -16,6 +16,7 @@ function setup({ width = 1400, native = false, server: serverPatch = {}, ui: uiP
   const nativeCalls = [];
   const timers = [];
   const envCalls = [];
+  const local = {};
   const api = new Proxy({}, {
     get: (_t, name) => (...args) => {
       calls.push([name, ...args]);
@@ -46,6 +47,7 @@ function setup({ width = 1400, native = false, server: serverPatch = {}, ui: uiP
     notifyBrowser: (d) => envCalls.push(`notify:${d.uid}`),
     requestBrowserPermission: () => envCalls.push('browserPermission'),
     loadDiagnostics: () => envCalls.push('diagnostics'),
+    localSet: (k, v) => { local[k] = v; },
     announcePolite: (m) => envCalls.push(`polite:${m}`),
     announceAssertive: (m) => envCalls.push(`assertive:${m}`),
   };
@@ -64,6 +66,7 @@ function setup({ width = 1400, native = false, server: serverPatch = {}, ui: uiP
     nativeCalls,
     envCalls,
     timers,
+    local,
     get server() { return server; },
     get ui() { return ui; },
     toasts: () => ui.toasts.map((t) => t.message),
@@ -479,10 +482,21 @@ test('usage view, text size, themes, palette, settings, help, onboarding (P-70, 
   await t.ctl.run('textSize.reset');
   assert.equal(t.server.prefs.font_scale, 1);
   assert.equal(t.ctl.run('textSize.reset'), true, 'already 1 → no PATCH');
-  for (const th of ['dark', 'light', 'high-contrast', 'system']) {
+  for (const th of ['dark', 'light', 'system']) {
     await t.ctl.run(`theme.${th}`);
     assert.equal(t.server.prefs.theme, th);
+    assert.equal(t.ui.highContrast, false);
   }
+  // high contrast is client-local: the API only accepts system|dark|light (API.md §4)
+  const patches = t.calls.filter((c) => c[0] === 'patchPrefs').length;
+  assert.equal(t.ctl.run('theme.high-contrast'), true);
+  assert.equal(t.ui.highContrast, true);
+  assert.equal(t.server.prefs.theme, 'system', 'server theme untouched');
+  assert.equal(t.calls.filter((c) => c[0] === 'patchPrefs').length, patches, 'no PATCH for high contrast');
+  assert.deepEqual(t.local, { 'omniwatch.highContrast': '1' });
+  await t.ctl.run('theme.dark');
+  assert.equal(t.ui.highContrast, false);
+  assert.deepEqual(t.local, { 'omniwatch.highContrast': '' });
   await t.ctl.run('theme.set', { theme: 'light' });
   assert.equal(t.server.prefs.theme, 'light');
   assert.equal(t.ctl.run('theme.set', { theme: 'neon' }), true);

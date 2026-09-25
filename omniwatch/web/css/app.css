@@ -603,6 +603,7 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
 .ow-screen-wrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
 .ow-screen {
   flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   padding: 14px 18px 16px;
   overflow: auto;
@@ -681,7 +682,6 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
 /* list/compact drawer */
 .ow-drawer { border-top: 1px solid var(--ow-border); background: var(--ow-bg); min-height: 0; }
 .ow-preview-drawer .ow-screen {
-  flex: 0 0 auto;
   height: calc(var(--ow-drawer-lines, 3) * 1.5em + 22px);
   max-height: 60vh;
   padding: 10px 16px;
@@ -1129,6 +1129,9 @@ button.ow-th:hover { background: var(--ow-hover); color: var(--ow-text); }
 [data-layout="compact"] .ow-toasts { left: 10px; right: 10px; align-items: stretch; bottom: 60px; }
 [data-layout="compact"] .ow-toast { max-width: none; }
 [data-layout="compact"] .ow-steps { grid-template-columns: 1fr; }
+[data-layout="compact"] .ow-banner { flex-wrap: wrap; row-gap: 6px; font-size: 12px; }
+[data-layout="compact"] .ow-banner > span:not(.ow-spacer):not(.ow-banner-spinner) { flex: 1 1 calc(100% - 30px); }
+[data-layout="compact"] .ow-banner > .ow-spacer { display: none; }
 
 /* ------------------------------------------------------------ utility */
 

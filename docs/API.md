@@ -477,7 +477,7 @@ data: <one line of JSON>
 | `toast` | `{level:"info"\|"warn"\|"error", message}` | server toasts (currently only `refreshing…`) |
 | `quota` | `{pct, to}` | a quota prompt becomes pending (clearing it is done with a full `state`, see above) |
 | `stats` **(P1→v1)** | `{seq, stats: Stats}` | a wait starts or ends, or the day rolls over |
-| `stall` **(P1→v1)** | `{uid, title, agent, since, minutes, muted}` (`since` is the last screen change) | a busy session becomes stalled; once per episode. The Swift shell doesn't notify on it yet (it ignores unknown events); the web UI can toast it |
+| `stall` **(P1→v1)** | `{uid, title, agent, since, minutes, muted}` (`since` is the last screen change) | a busy session becomes stalled; once per episode. The Swift shell posts a banner notification (skipped when `muted`); the web UI can toast it |
 
 Within one publish the order is: `sessions`, `screens`, `usage`, `prefs`, `capabilities`,
 `stats`, then `transition`s, then `stall`s, then queued `action`/`toast`/`quota`, then

@@ -24,6 +24,9 @@ export const initialUi = Object.freeze({
   notifyPermission: null, // 'granted'|'denied'|'notDetermined'|'error'|null
   diagnostics: null,
   pinnedPreview: true,
+  // The backend's `theme` pref is system|dark|light only (API.md §4), so the
+  // high-contrast choice is a client-side override on top of it.
+  highContrast: false,
 });
 
 function withToast(ui, level, message, now, extra = {}) {
@@ -131,6 +134,9 @@ const HANDLERS = {
   },
   setDiagnostics(ui, a) {
     return { ...ui, diagnostics: a.diagnostics };
+  },
+  setHighContrast(ui, a) {
+    return ui.highContrast === !!a.on ? ui : { ...ui, highContrast: !!a.on };
   },
   setPinned(ui, a) {
     return ui.pinnedPreview === a.pinned ? ui : { ...ui, pinnedPreview: a.pinned };

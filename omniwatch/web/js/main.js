@@ -12,7 +12,7 @@ import { createAppStore, createStore } from './store.js';
 import { nativeBridge } from './native.js';
 import { matchCommand } from './keymap.js';
 import { reduceUi, initialUi } from './uistate.js';
-import { createController } from './actions.js';
+import { createController, HIGH_CONTRAST_KEY } from './actions.js';
 import {
   derive, listItems, rowModel, statusChip, emptyState, summaryModel, windowTitle, matchCountText,
   previewFooter, stateWithAge, colorDotTitle, tileName, visibleUids, nativeThemeValue, clampSplit,
@@ -88,6 +88,12 @@ const ctl = createController({
       Notification.requestPermission().then(() => schedule());
     },
     loadDiagnostics,
+    localSet: (k, v) => {
+      try {
+        if (v) window.localStorage.setItem(k, v);
+        else window.localStorage.removeItem(k);
+      } catch (_) { /* storage unavailable: the override lasts for this page only */ }
+    },
     announcePolite: (msg) => announce('ow-live-polite', msg),
     announceAssertive: (msg) => announce('ow-live-assertive', msg),
   },
@@ -258,9 +264,10 @@ function render() {
   currentLayout = f.layout;
 
   // theme + scale (§2.6); resolved value posted to native once per change
-  applyTheme(document.documentElement, prefs.theme, prefs.font_scale);
-  const nt = nativeThemeValue(prefs.theme || 'system');
-  if (prefs.theme && nt !== lastThemeSent) {
+  const theme = f.ui.highContrast ? 'high-contrast' : prefs.theme;
+  applyTheme(document.documentElement, theme, prefs.font_scale);
+  const nt = nativeThemeValue(theme || 'system');
+  if (theme && nt !== lastThemeSent) {
     lastThemeSent = nt;
     native.reportTheme(nt);
   }
@@ -622,6 +629,9 @@ native.install({
     if (event && event.type === 'notifyPermission') ui.dispatch({ type: 'setNotifyPermission', status: event.status });
   },
 });
+try {
+  if (window.localStorage.getItem(HIGH_CONTRAST_KEY)) ui.dispatch({ type: 'setHighContrast', on: true });
+} catch (_) { /* no storage */ }
 if (!isNative && typeof Notification !== 'undefined') ui.dispatch({ type: 'setNotifyPermission', status: Notification.permission });
 
 server.connect();

@@ -165,7 +165,7 @@ export function createSettingsSheet(ctx) {
         { value: 'system', label: 'System', icon: 'monitor' }, { value: 'light', label: 'Light', icon: 'sun' },
         { value: 'dark', label: 'Dark', icon: 'moon' }, { value: 'high-contrast', label: 'High contrast', icon: 'contrast' },
       ],
-      get: (f) => prefs(f).theme || 'system',
+      get: (f) => (f.ui.highContrast ? 'high-contrast' : prefs(f).theme || 'system'),
       onChange: (v) => ctx.run('theme.set', { theme: v }),
     })),
     scaleRow,
