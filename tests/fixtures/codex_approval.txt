@@ -1,0 +1,8 @@
+  I need to run the test suite to verify the fix.
+
+  pytest -x tests/
+
+  Would you like to run the following command?
+
+  Yes (y)
+  No, and tell Codex what to do differently (esc)

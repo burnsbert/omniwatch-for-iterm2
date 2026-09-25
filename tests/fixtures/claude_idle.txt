@@ -1,0 +1,15 @@
+⏺ I've renamed the helper and updated the three call sites. The parser
+  now returns a typed record instead of a bare tuple.
+
+  ⎿  Read src/widgets/parser.py (212 lines)
+  ⎿  Updated src/widgets/parser.py with 14 additions and 9 removals
+
+✻ Worked for 24s
+
+※ recap: Refactored the parser helper into a typed record. No pending
+  next action. (disable recaps in /config)
+──────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────
+  Sonnet 4.6 | acme-widgets (main) [82% remaining]
+  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents

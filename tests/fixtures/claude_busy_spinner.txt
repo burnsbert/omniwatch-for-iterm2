@@ -1,0 +1,9 @@
+❯ 2
+
+✢ Ruminating…
+  ⎿  Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools
+──────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────
+  Sonnet 4.6 | acme-widgets (main) [55% remaining]
+  ⏵⏵ auto mode on (shift+tab to cycle)
