@@ -3,28 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
   <title>Omniwatch</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
   <!--
-    WP4 foundation shell only: the regions below are empty containers for
-    WP5's components (Toolbar, ProjectsPanel/SessionList, Preview/Grid/List,
-    UsageStrip, ...). js/main.js (WP5) is the wiring entry point that fills
-    them in using store.js/reducer.js/keymap.js from this WP.
+    Regions filled by js/main.js (WP5). Every piece of dynamic text is
+    inserted as a text node through js/dom.js; nothing here is templated.
   -->
-  <div id="app" class="ow-app">
+  <div id="app" class="ow-app" data-layout="split">
+    <div id="ow-banners" class="ow-banners"></div>
     <header id="ow-toolbar" class="ow-toolbar" role="toolbar" aria-label="Omniwatch toolbar"></header>
 
-    <div class="ow-body">
+    <div id="ow-body" class="ow-body">
       <aside id="ow-sidebar" class="ow-sidebar" aria-label="Projects and sessions"></aside>
-      <main id="ow-main" class="ow-main" aria-label="Session preview"></main>
+      <div id="ow-divider" class="ow-divider" role="separator" aria-orientation="vertical"
+           aria-label="Resize the session list" tabindex="0" title="Drag to resize · ← → · double-click resets"></div>
+      <main id="ow-main" class="ow-main" aria-label="Sessions"></main>
+      <div id="ow-empty" class="ow-empty-host" hidden></div>
+      <div id="ow-body-overlay" class="ow-body-overlay" hidden></div>
     </div>
 
+    <div id="ow-drawer" class="ow-drawer" hidden></div>
+    <div id="ow-hintbar" class="ow-hintbar"></div>
     <footer id="ow-usage-strip" class="ow-usage-strip" aria-label="Usage"></footer>
   </div>
 
+  <div id="ow-modals" class="ow-modals"></div>
   <div id="ow-toasts" class="ow-toasts" role="status" aria-live="polite"></div>
 
   <!-- Transition/toast announcements for assistive tech (§2.7); assertive

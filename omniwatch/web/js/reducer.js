@@ -91,6 +91,11 @@ const HANDLERS = {
   quota(state, data) {
     return { ...state, quota_prompt: data };
   },
+  // Local-only: the quota banner was acted on (draft/skip). The server has
+  // no "quota cleared" event (§4.4.2), so the client clears it itself.
+  quotaCleared(state) {
+    return state.quota_prompt === null ? state : { ...state, quota_prompt: null };
+  },
   capabilities(state, data) {
     return { ...state, capabilities: data };
   },
